@@ -23,23 +23,33 @@
     .header-content{
       display:flex;
       align-items:center;
-      gap:20px;
+      justify-content:space-between;
+      gap:25px;
+      width:100%;
+    }
+
+    .header-title{
+      flex:1;
     }
 
     .school-logo{
-      width:85px;
-      height:85px;
+      width:180px;
+      height:130px;
       object-fit:contain;
-      background:#fff;
-      border-radius:10px;
-      padding:5px;
+      background:transparent;
+      padding:0;
+      border-radius:0;
       flex-shrink:0;
     }
 
     @media(max-width:520px){
+      .header-content{
+        gap:10px;
+      }
+
       .school-logo{
-        width:65px;
-        height:65px;
+        width:100px;
+        height:90px;
       }
     }
     .topbar p{margin:0;color:#dceafa;font-size:14px}
@@ -111,11 +121,14 @@
 <body>
   <header class="topbar">
     <div class="header-content">
-      <img src="img/logo-escuela.png" alt="Logo de la escuela" class="school-logo">
-      <div>
+      <div class="header-title">
         <h1>Registro de Materiales e Insumos</h1>
         <p>Sistema de gestión de entregas, devoluciones y trazabilidad de bodega</p>
       </div>
+
+      <img src="img/logo-escuela.png"
+           alt="Logo de la escuela"
+           class="school-logo">
     </div>
   </header>
 
