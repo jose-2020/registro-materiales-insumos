@@ -20,6 +20,28 @@
     body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,Segoe UI,Arial,sans-serif}
     .topbar{background:linear-gradient(115deg,#123d6b,#2465a5);color:#fff;padding:25px max(22px,calc((100% - 1440px)/2));}
     .topbar h1{font-size:clamp(23px,3vw,32px);margin:0 0 6px;font-weight:750;letter-spacing:.1px}
+    .header-content{
+      display:flex;
+      align-items:center;
+      gap:20px;
+    }
+
+    .school-logo{
+      width:85px;
+      height:85px;
+      object-fit:contain;
+      background:#fff;
+      border-radius:10px;
+      padding:5px;
+      flex-shrink:0;
+    }
+
+    @media(max-width:520px){
+      .school-logo{
+        width:65px;
+        height:65px;
+      }
+    }
     .topbar p{margin:0;color:#dceafa;font-size:14px}
     .wrap{max-width:1440px;margin:0 auto;padding:22px}
     .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
@@ -88,8 +110,13 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>Registro de Materiales e Insumos</h1>
-    <p>Sistema de gestión de entregas, devoluciones y trazabilidad de bodega</p>
+    <div class="header-content">
+      <img src="img/logo-escuela.png" alt="Logo de la escuela" class="school-logo">
+      <div>
+        <h1>Registro de Materiales e Insumos</h1>
+        <p>Sistema de gestión de entregas, devoluciones y trazabilidad de bodega</p>
+      </div>
+    </div>
   </header>
 
   <main class="wrap">
@@ -105,10 +132,10 @@
         <form class="panel movement-form" id="deliveryForm" data-kind="delivery">
           <div class="panel-head"><h2>Material Entregado</h2><span class="tag out">SALIDA DE BODEGA</span></div>
           <div class="fields">
-            <div class="field"><label>Estudiante</label><select name="student" required><option value="">Seleccionar estudiante</option><option>Estudiante de prueba 1</option><option>Estudiante de prueba 2</option><option>Estudiante de prueba 3</option></select></div>
+            <div class="field"><label>Estudiante</label><input type="text" name="student" placeholder="Escriba el nombre del estudiante" required></div>
             <div class="field"><label>Tutor</label><select name="tutor" required><option value="">Seleccionar tutor</option><option>Docente de prueba 1</option><option>Docente de prueba 2</option><option>Docente de prueba 3</option></select></div>
             <div class="field"><label>Investigación / Tesis / Docencia</label><select name="activity" required><option value="">Seleccionar tipo</option><option>Investigación</option><option>Tesis</option><option>Docencia</option></select></div>
-            <div class="field"><label>Código de proyecto / Nombre de tesis / Materia</label><select name="project" required><option value="">Seleccionar proyecto o materia</option><option>Proyecto de investigación 001</option><option>Tesis de ejemplo</option><option>Química General</option><option>Nanotecnología</option></select></div>
+            <div class="field"><label>Código de proyecto / Nombre de tesis / Materia</label><input type="text" name="project" placeholder="Escriba el código, tesis o materia" required></div>
             <div class="field"><label>Escuela</label><select name="school" required><option value="">Seleccionar escuela</option><option>Ingeniería</option><option>Ciencias Básicas</option><option>Biotecnología</option><option>Otra escuela</option></select></div>
             <div class="field"><label>Técnico/a</label><select name="technician" required><option value="">Seleccionar técnico/a</option><option>Melany</option><option>Johanna</option><option>Fernanda</option><option>José</option></select></div>
             <div class="field"><label>Fecha</label><input type="date" name="date" required></div>
@@ -126,13 +153,13 @@
           <div class="panel-head"><h2>Material Devuelto</h2><span class="tag in">INGRESO A BODEGA</span></div>
           <div class="fields">
             <div class="field full"><label>Entrega relacionada</label><select name="deliveryId" id="deliveryLink" required><option value="">Primero registre una entrega</option></select></div>
-            <div class="field"><label>Estudiante</label><select name="student" required><option value="">Seleccionar estudiante</option><option>Estudiante de prueba 1</option><option>Estudiante de prueba 2</option><option>Estudiante de prueba 3</option></select></div>
+            <div class="field"><label>Estudiante</label><input type="text" name="student" placeholder="Escriba el nombre del estudiante" required></div>
             <div class="field"><label>Tutor</label><select name="tutor" required><option value="">Seleccionar tutor</option><option>Docente de prueba 1</option><option>Docente de prueba 2</option><option>Docente de prueba 3</option></select></div>
             <div class="field"><label>Investigación / Tesis / Docencia</label><select name="activity" required><option value="">Seleccionar tipo</option><option>Investigación</option><option>Tesis</option><option>Docencia</option></select></div>
-            <div class="field"><label>Código de proyecto / Nombre de tesis / Materia</label><select name="project" required><option value="">Seleccionar proyecto o materia</option><option>Proyecto de investigación 001</option><option>Tesis de ejemplo</option><option>Química General</option><option>Nanotecnología</option></select></div>
+            <div class="field"><label>Código de proyecto / Nombre de tesis / Materia</label><input type="text" name="project" placeholder="Escriba el código, tesis o materia" required></div>
             <div class="field"><label>Escuela</label><select name="school" required><option value="">Seleccionar escuela</option><option>Ingeniería</option><option>Ciencias Básicas</option><option>Biotecnología</option><option>Otra escuela</option></select></div>
             <div class="field"><label>Técnico/a que recibe</label><select name="technician" required><option value="">Seleccionar técnico/a</option><option>Melany</option><option>Johanna</option><option>Fernanda</option><option>José</option></select></div>
-            <div class="field"><label>Fecha</label><input type="date" name="date" required></div>
+            <div class="field"><label>Fecha de devolución</label><input type="date" name="date" id="returnDate" required></div>
             <div class="field"><label>Hora</label><input type="time" name="time" required></div>
           </div>
           <div class="subhead">Detalle de materiales devueltos</div>
@@ -188,7 +215,7 @@
     function materialRow(containerId){
       const container=document.getElementById(containerId);
       const row=document.createElement("div");row.className="material-row";
-      row.innerHTML=`<input type="number" min="0.001" step="any" placeholder="0" aria-label="Cantidad" required>
+      row.innerHTML=`<input type="number" min="1" step="1" placeholder="0" aria-label="Cantidad" required>
         <select aria-label="Unidad" required><option value="">Unidad</option>${units.map(x=>`<option>${x}</option>`).join("")}</select>
         <select aria-label="Material o insumo" required><option value="">Seleccionar</option>${materials.map(x=>`<option>${x}</option>`).join("")}</select>
         <button class="icon-btn remove" type="button" title="Eliminar línea" aria-label="Eliminar línea">−</button>`;
@@ -225,6 +252,16 @@
     document.getElementById("deliveryLink").addEventListener("change",e=>{
       const d=state.deliveries.find(x=>x.id===e.target.value);if(!d)return;
       const form=document.getElementById("returnForm");
+      const returnDate=form.elements["date"];
+
+      // La devolución no puede tener una fecha anterior a la entrega
+      returnDate.min=d.date;
+
+      // Si la fecha actual del formulario es anterior a la entrega,
+      // se actualiza automáticamente
+      if(returnDate.value<d.date){
+        returnDate.value=d.date;
+      }
       ["student","tutor","activity","project","school"].forEach(k=>form.elements[k].value=d[k]);
       const box=document.getElementById("returnLines");box.innerHTML="";
       d.items.forEach(item=>{
@@ -238,7 +275,7 @@
 
     document.getElementById("deliveryForm").addEventListener("submit",e=>{
       e.preventDefault();const form=e.currentTarget,data=formData(form),items=getLines("deliveryLines");
-      if(!items.length||items.some(x=>!x.quantity||!x.unit||!x.material)){alert("Complete todas las líneas de materiales.");return;}
+      if(!items.length||items.some(x=>!Number.isInteger(x.quantity)||x.quantity<1||!x.unit||!x.material)){alert("Ingrese cantidades enteras mayores que cero y complete todas las líneas de materiales.");return;}
       const d={...data,id:crypto.randomUUID(),items,kind:"delivery"};
       state.deliveries.push(d);
       addCalendarEvent(`Entrega · ${d.student}`,eventDate(d),"#2563eb",{...d,items});
@@ -249,7 +286,8 @@
     document.getElementById("returnForm").addEventListener("submit",e=>{
       e.preventDefault();const form=e.currentTarget,data=formData(form),delivery=state.deliveries.find(d=>d.id===data.deliveryId),items=getLines("returnLines");
       if(!delivery){alert("Seleccione una entrega relacionada.");return;}
-      if(!items.length||items.some(x=>!x.quantity||!x.unit||!x.material)){alert("Complete todas las líneas de devolución.");return;}
+      if(data.date<delivery.date){alert("La fecha de devolución no puede ser anterior a la fecha de entrega.");return;}
+      if(!items.length||items.some(x=>!Number.isInteger(x.quantity)||x.quantity<1||!x.unit||!x.material)){alert("Ingrese cantidades enteras mayores que cero y complete todas las líneas de devolución.");return;}
       for(const item of items){
         const delivered=delivery.items.filter(x=>x.material===item.material&&x.unit===item.unit).reduce((s,x)=>s+x.quantity,0);
         const already=state.returns.filter(r=>r.deliveryId===delivery.id).flatMap(r=>r.items).filter(x=>x.material===item.material&&x.unit===item.unit).reduce((s,x)=>s+x.quantity,0);
