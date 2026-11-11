@@ -102,6 +102,7 @@
     .fc .fc-button{background:var(--blue)!important;border-color:var(--blue)!important;text-transform:capitalize!important}
     .fc .fc-button:focus{box-shadow:0 0 0 3px #bfdbfe!important}
     .fc .fc-daygrid-event{white-space:normal}
+    .fc-event{cursor:pointer;touch-action:manipulation;}
     .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
     .toolbar input{max-width:360px}
     .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
@@ -372,11 +373,38 @@
     document.addEventListener("DOMContentLoaded",()=>{
       if(window.FullCalendar){
         state.calendar=new FullCalendar.Calendar(document.getElementById("calendar"),{
-          initialView:"dayGridMonth",locale:"es",firstDay:1,height:"auto",nowIndicator:true,
-          headerToolbar:{left:"prev,next today",center:"title",right:"dayGridMonth,timeGridWeek,timeGridDay"},
-          buttonText:{today:"Hoy",month:"Mes",week:"Semana",day:"Día"},
-          eventClick:showEvent,dayMaxEvents:true,allDaySlot:false,slotMinTime:"06:00:00",slotMaxTime:"22:00:00"
-        });state.calendar.render();
+          initialView:"dayGridMonth",
+          locale:"es",
+          firstDay:1,
+          height:"auto",
+          nowIndicator:true,
+
+          headerToolbar:{
+          left:"prev,next today",
+          center:"title",
+          right:"dayGridMonth,timeGridWeek,timeGridDay"
+          },
+
+          buttonText:{
+            today:"Hoy",
+            month:"Mes",
+            week:"Semana",
+            day:"Día"
+          },
+
+          eventClick:function(info){
+            info.jsEvent.preventDefault();
+            info.jsEvent.stopPropagation();
+            showEvent(info);
+          },
+
+          eventDisplay:"block",
+          dayMaxEvents:true,
+          allDaySlot:false,
+          slotMinTime:"06:00:00",
+          slotMaxTime:"22:00:00"
+        });
+        state.calendar.render();
       }else{document.getElementById("calendar").innerHTML='<p class="empty">No se pudo cargar el calendario. Revise su conexión a internet.</p>';}
     });
   </script>
