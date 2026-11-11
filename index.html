@@ -107,9 +107,9 @@
     .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
     .toolbar input{max-width:360px}
     .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
-    table{border-collapse:collapse;width:100%;min-width:1250px;font-size:12px;background:#fff}
-    th{background:#edf3f9;color:#334155;text-align:left;font-size:11px;position:sticky;top:0;z-index:1}
-    th,td{padding:11px 9px;border-bottom:1px solid #e5eaf0;vertical-align:middle}
+    .table-wrap table{border-collapse:collapse;width:100%;min-width:1250px;font-size:12px;background:#fff}/*table{border-collapse:collapse;width:100%;min-width:1250px;font-size:12px;background:#fff}*/
+    .table-wrap th{background:#edf3f9;color:#334155;text-align:left;font-size:11px;position:sticky;top:0;z-index:1}/*th{background:#edf3f9;color:#334155;text-align:left;font-size:11px;position:sticky;top:0;z-index:1}*/
+    .table-wrap th,.table-wrap td{padding:11px 9px;border-bottom:1px solid #e5eaf0;vertical-align:middle}/*th,td{padding:11px 9px;border-bottom:1px solid #e5eaf0;vertical-align:middle}*/
     tbody tr.pending{background:#fff0f0}tbody tr.returned{background:#edfaf1}
     tbody tr:hover{filter:brightness(.985)}
     .status{font-weight:750;border-radius:20px;padding:5px 9px;display:inline-block;white-space:nowrap}
@@ -355,7 +355,12 @@
     document.querySelectorAll(".nav button").forEach(btn=>btn.addEventListener("click",()=>{
       document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b===btn));
       document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===`view-${btn.dataset.view}`));
-      if(btn.dataset.view==="calendario"&&state.calendar)state.calendar.updateSize();
+
+      if(btn.dataset.view==="calendario"&&state.calendar){
+          setTimeout(()=>{
+            state.calendar.updateSize();
+          },100);
+      }
     }));
     const modal=document.getElementById("eventModal");
     document.getElementById("closeModal").addEventListener("click",()=>modal.classList.remove("show"));
