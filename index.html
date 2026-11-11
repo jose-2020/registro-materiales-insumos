@@ -102,7 +102,7 @@
     .fc .fc-button{background:var(--blue)!important;border-color:var(--blue)!important;text-transform:capitalize!important}
     .fc .fc-button:focus{box-shadow:0 0 0 3px #bfdbfe!important}
     .fc .fc-daygrid-event{white-space:normal}
-    .fc-event{cursor:pointer;touch-action:manipulation;}
+    .fc-event{cursor:pointer;touch-action:manipulation;pointer-events:auto;}.fc .fc-timegrid-event{min-height:40px;}.fc .fc-daygrid-event{min-height:24px;padding:2px;}
     .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
     .toolbar input{max-width:360px}
     .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
@@ -392,9 +392,7 @@
             day:"Día"
           },
 
-          eventClick:function(info){
-            info.jsEvent.preventDefault();
-            info.jsEvent.stopPropagation();
+          eventClick: function(info) {
             showEvent(info);
           },
 
