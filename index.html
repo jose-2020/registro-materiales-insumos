@@ -193,7 +193,8 @@
         <form class="panel movement-form" id="returnForm" data-kind="return">
           <div class="panel-head"><h2>Material Devuelto</h2><span class="tag in">INGRESO A BODEGA</span></div>
           <div class="fields">
-            <div class="field full"><label>Entrega relacionada</label><select name="deliveryId" id="deliveryLink" required><option value="">Primero registre una entrega</option></select></div>
+            <div class="field full"><label>1. Buscar estudiante</label><input type="text" id="deliveryStudent" list="studentOptions" placeholder="Escriba o busque el nombre del estudiante" autocomplete="off" required><datalist id="studentOptions"></datalist></div>
+            <div class="field full"><label>2. Seleccionar fecha y materiales prestados</label><select name="deliveryId" id="deliveryLink" required><option value="">Primero seleccione un estudiante</option></select></div>
             <div class="field"><label>Estudiante</label><input type="text" name="student" placeholder="Escriba el nombre del estudiante" required></div>
             <div class="field"><label>Tutor</label><input type="text" name="tutor" placeholder="Escriba el nombre del tutor" required></div>
             <div class="field"><label>Investigación / Tesis / Docencia</label><select name="activity" required><option value="">Seleccionar tipo</option><option>Investigación</option><option>Tesis</option><option>Docencia</option></select></div>
@@ -312,15 +313,68 @@
       if(state.calendar){state.calendar.addEvent({title,start,backgroundColor:color,borderColor:color,extendedProps:{details}});}
     }
     function refreshDeliveryOptions(){
+      const studentInput=document.getElementById("deliveryStudent");
+      const datalist=document.getElementById("studentOptions");
+      const deliverySelect=document.getElementById("deliveryLink");
+    
+      // Conservar la selección anterior cuando se actualiza la lista
+      const previousDelivery=deliverySelect.value;
+      const previousStudent=studentInput.value;
+    
+      // Obtener nombres únicos de estudiantes
+      const students=[...new Set(
+        state.deliveries.map(d=>d.student).filter(Boolean)
+      )].sort((a,b)=>a.localeCompare(b));
+    
+      // Actualizar sugerencias de estudiantes
+      datalist.innerHTML="";
+    
+      students.forEach(student=>{
+        const option=document.createElement("option");
+        option.value=student;
+        datalist.appendChild(option);
+      });
+    
+      // Si ya había una entrega seleccionada, conservar su estudiante
+      const selectedDelivery=state.deliveries.find(d=>d.id===previousDelivery);
+    
+      if(selectedDelivery){
+        studentInput.value=selectedDelivery.student;
+      }else if(!students.includes(previousStudent)){
+        studentInput.value="";
+      }
+    
+      populateDeliveryOptions(studentInput.value,previousDelivery);
+    }
+    
+    
+    function populateDeliveryOptions(student,selectedId=""){
       const select=document.getElementById("deliveryLink");
-      const previous=select.value;
-      select.innerHTML='<option value="">Seleccionar entrega relacionada</option>';
-      state.deliveries.forEach(d=>{
-        const option=document.createElement("option");option.value=d.id;
-        option.textContent=`${d.date} · ${d.student} · ${d.items.map(i=>i.material).join(", ")}`;
+    
+      // Mostrar solamente las entregas del estudiante seleccionado
+      const deliveries=state.deliveries.filter(d=>
+        d.student.trim().toLowerCase()===student.trim().toLowerCase()
+      );
+    
+      select.innerHTML='<option value="">Seleccionar fecha y materiales</option>';
+    
+      deliveries.forEach(d=>{
+        const option=document.createElement("option");
+        option.value=d.id;
+    
+        const materialsText=d.items.map(item=>
+          `${item.quantity} ${item.unit} ${item.material}`
+        ).join(", ");
+    
+        option.textContent=`${d.date} · ${materialsText}`;
+    
         select.appendChild(option);
       });
-      if(state.deliveries.some(d=>d.id===previous))select.value=previous;
+    
+      // Conservar la entrega si sigue perteneciendo al estudiante
+      if(deliveries.some(d=>d.id===selectedId)){
+        select.value=selectedId;
+      }
     }
     function updateReturnTimeLimit(delivery){
       const returnDate=document.getElementById("returnDate");
@@ -341,6 +395,17 @@
         returnTime.value=delivery.time;
       }
     }
+    // Buscar entregas cuando se escribe o selecciona un estudiante
+    document.getElementById("deliveryStudent").addEventListener("input",e=>{
+      const deliverySelect=document.getElementById("deliveryLink");
+    
+      // Limpiar la entrega anterior
+      deliverySelect.value="";
+      deliverySelect.dispatchEvent(new Event("change"));
+    
+      // Mostrar las entregas del estudiante buscado
+      populateDeliveryOptions(e.target.value);
+    });
     document.getElementById("deliveryLink").addEventListener("change",e=>{
       const d=state.deliveries.find(x=>x.id===e.target.value);
       const form=document.getElementById("returnForm");
@@ -349,6 +414,17 @@
       if(!d){
         returnDate.removeAttribute("min");
         form.elements["time"].removeAttribute("min");
+      
+        // Limpiar los datos de la entrega anterior
+        ["student","tutor","activity","project","school"].forEach(k=>{
+          form.elements[k].value="";
+        });
+      
+        // Limpiar los materiales anteriores
+        const box=document.getElementById("returnLines");
+        box.innerHTML="";
+        materialRow("returnLines");
+      
         return;
       }
 
