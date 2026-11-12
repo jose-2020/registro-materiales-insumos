@@ -108,9 +108,29 @@
     .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
     .toolbar input{max-width:360px}
     .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
-    .table-wrap table{border-collapse:collapse;width:100%;min-width:1250px;font-size:12px;background:#fff}
+    .table-wrap table{border-collapse:collapse;width:100%;min-width:1450px;font-size:12px;background:#fff}
     .table-wrap th{background:#edf3f9;color:#334155;text-align:left;font-size:11px;position:sticky;top:0;z-index:1}
     .table-wrap th,.table-wrap td{padding:11px 9px;border-bottom:1px solid #e5eaf0;vertical-align:middle}
+    /* Filtros individuales de la tabla */
+    .table-wrap .filter-row th{
+      background:#f8fafc;
+      padding:6px;
+      top:auto;
+    }
+    
+    .table-wrap .filter-row input,
+    .table-wrap .filter-row select{
+      width:100%;
+      min-width:75px;
+      padding:7px 6px;
+      font-size:11px;
+      border:1px solid #cbd5e1;
+      border-radius:6px;
+    }
+    
+    .table-wrap .filter-row input::placeholder{
+      color:#94a3b8;
+    }
     tbody tr.pending{background:#fff0f0}tbody tr.returned{background:#edfaf1}
     tbody tr:hover{filter:brightness(.985)}
     .status{font-weight:750;border-radius:20px;padding:5px 9px;display:inline-block;white-space:nowrap}
@@ -204,15 +224,47 @@
     <section class="view" id="view-prestados">
       <div class="section-card">
         <div class="section-title"><h2>Material Prestado</h2><span class="tag out">SALDO POR ENTREGA</span></div>
-        <div class="toolbar">
-          <input type="search" id="tableSearch" placeholder="Buscar estudiante, material, tutor, proyecto...">
-          <select id="statusFilter" style="max-width:190px"><option value="">Todos los estados</option><option value="pending">Pendiente</option><option value="returned">Devuelto</option></select>
-          <span class="hint" style="margin:0">Cada fila corresponde a un material de una entrega específica.</span>
-        </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Cantidad</th><th>Unidad</th><th>Material o insumo</th><th>Estudiante</th><th>Tutor</th><th>Escuela</th><th>Actividad</th><th>Proyecto / Tesis / Materia</th><th>Fecha de entrega</th><th>Fecha de devolución</th><th>Técnico que recibe</th><th>Estado</th></tr></thead>
-            <tbody id="loanRows"><tr><td colspan="12" class="empty">Todavía no hay materiales registrados.</td></tr></tbody>
+            <thead>
+              <tr>
+                <th>Cantidad</th>
+                <th>Unidad</th>
+                <th>Material o insumo</th>
+                <th>Estudiante</th>
+                <th>Tutor</th>
+                <th>Escuela</th>
+                <th>Actividad</th>
+                <th>Proyecto / Tesis / Materia</th>
+                <th>Fecha de entrega</th>
+                <th>Fecha de devolución</th>
+                <th>Técnico que entrega</th>
+                <th>Técnico que recibe</th>
+                <th>Estado</th>
+              </tr>
+              <tr class="filter-row">
+                <th><input type="text" data-column-filter="0" placeholder="Filtrar"></th>
+                <th><input type="text" data-column-filter="1" placeholder="Filtrar"></th>
+                <th><input type="text" data-column-filter="2" placeholder="Filtrar"></th>
+                <th><input type="text" data-column-filter="3" placeholder="Filtrar"></th>
+                <th><input type="text" data-column-filter="4" placeholder="Filtrar"></th>
+                <th><input type="text" data-column-filter="5" placeholder="Filtrar"></th>
+                <th><input type="text" data-column-filter="6" placeholder="Filtrar"></th>
+                <th><input type="text" data-column-filter="7" placeholder="Filtrar"></th>
+                <th><input type="text" data-column-filter="8" placeholder="Filtrar"></th>
+                <th><input type="text" data-column-filter="9" placeholder="Filtrar"></th>
+                <th><input type="text" data-column-filter="10" placeholder="Filtrar"></th>
+                <th><input type="text" data-column-filter="11" placeholder="Filtrar"></th>
+                <th>
+                  <select data-column-filter="12">
+                    <option value="">Todos</option>
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="Devuelto">Devuelto</option>
+                  </select>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="loanRows"><tr><td colspan="13" class="empty">Todavía no hay materiales registrados.</td></tr></tbody>
           </table>
         </div>
         <p class="hint">El saldo se calcula automáticamente: cantidad entregada menos la suma de las devoluciones asociadas a esa entrega. El estado no se modifica manualmente.</p>
@@ -369,86 +421,64 @@
     function renderLoans(){
       const tbody=document.getElementById("loanRows");
       tbody.innerHTML="";
-
+    
       const rows=[];
-
+    
       state.deliveries.forEach(d=>{
-        d.items.forEach((item,index)=>{
-
-          // Buscar todas las devoluciones asociadas a este material
+        d.items.forEach(item=>{
+    
+          // Buscar las devoluciones asociadas a esta entrega
           const matchingReturns=state.returns
             .filter(r=>r.deliveryId===d.id);
-
+    
           const returnedItems=matchingReturns.flatMap(r=>
             r.items
               .filter(x=>x.material===item.material&&x.unit===item.unit)
               .map(x=>({
                 quantity:x.quantity,
                 date:r.date,
-                time:r.time,
                 technician:r.technician
               }))
           );
-
-          // Calcular la cantidad total devuelta y el saldo pendiente
+    
+          // Calcular cantidad devuelta y saldo pendiente
           const returned=returnedItems.reduce((s,x)=>s+x.quantity,0);
           const pending=Math.max(0,item.quantity-returned);
-
-          // Crear una fila por cada devolución realizada
+    
+          // Una fila por cada devolución
           returnedItems.forEach(r=>{
             rows.push({
               quantity:r.quantity,
               item,
               d,
               returnDate:r.date,
-              technician:r.technician,
+              deliveryTechnician:d.technician,
+              receivingTechnician:r.technician,
               status:"returned"
             });
           });
-
-          // Crear una fila adicional si todavía queda material pendiente
+    
+          // Una fila adicional si todavía hay material pendiente
           if(pending>0){
             rows.push({
               quantity:pending,
               item,
               d,
               returnDate:"—",
-              technician:"—",
+              deliveryTechnician:d.technician,
+              receivingTechnician:"—",
               status:"pending"
             });
           }
         });
       });
-
-      // Aplicar búsqueda y filtro de estado
-      const q=document.getElementById("tableSearch").value.trim().toLowerCase();
-      const filter=document.getElementById("statusFilter").value;
-
+    
+      // Obtener los filtros de cada columna
+      const filters=[...document.querySelectorAll("[data-column-filter]")]
+        .map(input=>input.value.trim().toLowerCase());
+    
+      // Aplicar todos los filtros
       const visible=rows.filter(x=>{
-        const hay=[
-          x.item.material,
-          x.d.student,
-          x.d.tutor,
-          x.d.school,
-          x.d.activity,
-          x.d.project,
-          x.d.technician,
-          x.technician
-        ].join(" ").toLowerCase();
-
-        return (!q||hay.includes(q))&&(!filter||x.status===filter);
-      });
-
-      if(!visible.length){
-        tbody.innerHTML='<tr><td colspan="12" class="empty">No hay registros que coincidan con la búsqueda.</td></tr>';
-        return;
-      }
-
-      // Dibujar las filas de la tabla
-      visible.forEach(x=>{
-        const tr=document.createElement("tr");
-        tr.className=x.status;
-
         const cells=[
           x.quantity,
           x.item.unit,
@@ -460,27 +490,62 @@
           x.d.project,
           x.d.date,
           x.returnDate,
-          x.technician
+          x.deliveryTechnician,
+          x.receivingTechnician,
+          x.status==="returned"?"Devuelto":"Pendiente"
         ];
-
+    
+        return filters.every((filter,index)=>{
+          return !filter || String(cells[index]).toLowerCase().includes(filter);
+        });
+      });
+    
+      if(!visible.length){
+        tbody.innerHTML='<tr><td colspan="13" class="empty">No hay registros que coincidan con los filtros.</td></tr>';
+        return;
+      }
+    
+      // Dibujar las filas de la tabla
+      visible.forEach(x=>{
+        const tr=document.createElement("tr");
+        tr.className=x.status;
+    
+        const cells=[
+          x.quantity,
+          x.item.unit,
+          x.item.material,
+          x.d.student,
+          x.d.tutor,
+          x.d.school,
+          x.d.activity,
+          x.d.project,
+          x.d.date,
+          x.returnDate,
+          x.deliveryTechnician,
+          x.receivingTechnician
+        ];
+    
         cells.forEach(value=>{
           const td=document.createElement("td");
           td.textContent=value;
           tr.appendChild(td);
         });
-
+    
         const td=document.createElement("td");
-
+    
         td.innerHTML=x.status==="returned"
           ?'<span class="status yes">Devuelto</span>'
           :'<span class="status no">Pendiente</span>';
-
+    
         tr.appendChild(td);
         tbody.appendChild(tr);
       });
     }
-    document.getElementById("tableSearch").addEventListener("input",renderLoans);
-    document.getElementById("statusFilter").addEventListener("change",renderLoans);
+    // Actualizar la tabla cuando cambia cualquier filtro
+    document.querySelectorAll("[data-column-filter]").forEach(filter=>{
+      filter.addEventListener("input",renderLoans);
+      filter.addEventListener("change",renderLoans);
+    });
 
     document.querySelectorAll(".nav button").forEach(btn=>btn.addEventListener("click",()=>{
       document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b===btn));
