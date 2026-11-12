@@ -75,6 +75,58 @@
     label{font-size:12px;font-weight:700;color:#475569}
     input,select,textarea{width:100%;min-width:0;border:1px solid #cbd5e1;border-radius:8px;padding:10px 11px;background:#fff;color:#1e293b;font:inherit;font-size:13px;outline:none}
     input:focus,select:focus,textarea:focus{border-color:#4b8bd1;box-shadow:0 0 0 3px #dbeafe}
+    /* Desplegable personalizado para buscar estudiantes */
+    .student-search{
+      position:relative;
+      width:100%;
+    }
+    
+    .student-options{
+      display:none;
+      position:absolute;
+      top:calc(100% + 4px);
+      left:0;
+      right:0;
+      max-height:220px;
+      overflow-y:auto;
+      background:#fff;
+      border:1px solid #cbd5e1;
+      border-radius:8px;
+      box-shadow:0 8px 20px rgba(15,40,75,.14);
+      z-index:10;
+    }
+    
+    .student-options.show{
+      display:block;
+    }
+    
+    .student-option{
+      display:block;
+      width:100%;
+      padding:10px 12px;
+      border:0;
+      border-bottom:1px solid #eef2f7;
+      background:#fff;
+      color:#1e293b;
+      text-align:left;
+      font-size:13px;
+      cursor:pointer;
+    }
+    
+    .student-option:last-child{
+      border-bottom:0;
+    }
+    
+    .student-option:hover{
+      background:#eaf2fb;
+      color:#174b83;
+    }
+    
+    .student-no-results{
+      padding:11px 12px;
+      color:#64748b;
+      font-size:12px;
+    }
     textarea{resize:vertical;min-height:68px}
     .subhead{font-size:13px;font-weight:750;margin:19px 0 9px;color:#334155}
     .material-head,.material-row{display:grid;grid-template-columns:78px 112px minmax(120px,1fr) 34px;gap:7px;align-items:center}
@@ -193,7 +245,7 @@
         <form class="panel movement-form" id="returnForm" data-kind="return">
           <div class="panel-head"><h2>Material Devuelto</h2><span class="tag in">INGRESO A BODEGA</span></div>
           <div class="fields">
-            <div class="field full"><label>1. Buscar estudiante</label><input type="text" id="deliveryStudent" list="studentOptions" placeholder="Escriba o busque el nombre del estudiante" autocomplete="off" required><datalist id="studentOptions"></datalist></div>
+            <div class="field full"><label>1. Buscar estudiante</label><div class="student-search"><input type="text" id="deliveryStudent" placeholder="Escriba el nombre del estudiante" autocomplete="off" required><div id="studentOptions" class="student-options"></div></div></div>
             <div class="field full"><label>2. Seleccionar fecha y materiales prestados</label><select name="deliveryId" id="deliveryLink" required><option value="">Primero seleccione un estudiante</option></select></div>
             <div class="field"><label>Estudiante</label><input type="text" name="student" placeholder="Escriba el nombre del estudiante" required></div>
             <div class="field"><label>Tutor</label><input type="text" name="tutor" placeholder="Escriba el nombre del tutor" required></div>
@@ -314,44 +366,70 @@
     }
     function refreshDeliveryOptions(){
       const studentInput=document.getElementById("deliveryStudent");
-      const datalist=document.getElementById("studentOptions");
-      const deliverySelect=document.getElementById("deliveryLink");
+      const previousDelivery=document.getElementById("deliveryLink").value;
     
-      // Conservar la selección anterior cuando se actualiza la lista
-      const previousDelivery=deliverySelect.value;
-      const previousStudent=studentInput.value;
-    
-      // Obtener nombres únicos de estudiantes
-      const students=[...new Set(
-        state.deliveries.map(d=>d.student).filter(Boolean)
-      )].sort((a,b)=>a.localeCompare(b));
-    
-      // Actualizar sugerencias de estudiantes
-      datalist.innerHTML="";
-    
-      students.forEach(student=>{
-        const option=document.createElement("option");
-        option.value=student;
-        datalist.appendChild(option);
-      });
-    
-      // Si ya había una entrega seleccionada, conservar su estudiante
       const selectedDelivery=state.deliveries.find(d=>d.id===previousDelivery);
     
       if(selectedDelivery){
         studentInput.value=selectedDelivery.student;
-      }else if(!students.includes(previousStudent)){
-        studentInput.value="";
       }
     
       populateDeliveryOptions(studentInput.value,previousDelivery);
     }
     
     
+    function showStudentOptions(search=""){
+      const optionsBox=document.getElementById("studentOptions");
+    
+      const students=[...new Set(
+        state.deliveries.map(d=>d.student.trim()).filter(Boolean)
+      )].sort((a,b)=>a.localeCompare(b));
+    
+      const query=search.trim().toLowerCase();
+    
+      const matches=students.filter(student=>
+        student.toLowerCase().includes(query)
+      );
+    
+      optionsBox.innerHTML="";
+    
+      if(!matches.length){
+        optionsBox.innerHTML=
+          '<div class="student-no-results">No se encontraron estudiantes.</div>';
+      }else{
+        matches.forEach(student=>{
+          const option=document.createElement("button");
+          option.type="button";
+          option.className="student-option";
+          option.textContent=student;
+    
+          option.addEventListener("click",()=>{
+            const input=document.getElementById("deliveryStudent");
+            const deliverySelect=document.getElementById("deliveryLink");
+    
+            input.value=student;
+            deliverySelect.value="";
+    
+            // Limpiar los datos de la entrega anterior
+            deliverySelect.dispatchEvent(new Event("change"));
+    
+            // Mostrar las entregas del estudiante seleccionado
+            populateDeliveryOptions(student);
+    
+            optionsBox.classList.remove("show");
+          });
+    
+          optionsBox.appendChild(option);
+        });
+      }
+    
+      optionsBox.classList.add("show");
+    }
+    
+    
     function populateDeliveryOptions(student,selectedId=""){
       const select=document.getElementById("deliveryLink");
     
-      // Mostrar solamente las entregas del estudiante seleccionado
       const deliveries=state.deliveries.filter(d=>
         d.student.trim().toLowerCase()===student.trim().toLowerCase()
       );
@@ -371,7 +449,6 @@
         select.appendChild(option);
       });
     
-      // Conservar la entrega si sigue perteneciendo al estudiante
       if(deliveries.some(d=>d.id===selectedId)){
         select.value=selectedId;
       }
@@ -395,16 +472,27 @@
         returnTime.value=delivery.time;
       }
     }
-    // Buscar entregas cuando se escribe o selecciona un estudiante
+    // Mostrar estudiantes al entrar en el campo
+    document.getElementById("deliveryStudent").addEventListener("focus",e=>{
+      showStudentOptions(e.target.value);
+    });
+    
+    // Filtrar estudiantes mientras se escribe
     document.getElementById("deliveryStudent").addEventListener("input",e=>{
       const deliverySelect=document.getElementById("deliveryLink");
     
-      // Limpiar la entrega anterior
       deliverySelect.value="";
       deliverySelect.dispatchEvent(new Event("change"));
     
-      // Mostrar las entregas del estudiante buscado
-      populateDeliveryOptions(e.target.value);
+      populateDeliveryOptions("");
+      showStudentOptions(e.target.value);
+    });
+    
+    // Cerrar la lista al hacer clic fuera del buscador
+    document.addEventListener("click",e=>{
+      if(!e.target.closest(".student-search")){
+        document.getElementById("studentOptions").classList.remove("show");
+      }
     });
     document.getElementById("deliveryLink").addEventListener("change",e=>{
       const d=state.deliveries.find(x=>x.id===e.target.value);
