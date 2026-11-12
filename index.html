@@ -345,12 +345,58 @@
         <select aria-label="Unidad" required><option value="">Unidad</option>${units.map(x=>`<option>${x}</option>`).join("")}</select>
         <select aria-label="Material o insumo" required><option value="">Seleccionar</option>${materials.map(x=>`<option>${x}</option>`).join("")}</select>
         <button class="icon-btn remove" type="button" title="Eliminar línea" aria-label="Eliminar línea">−</button>`;
+      // En las devoluciones se permite dejar la cantidad vacía
+      if(containerId==="returnLines"){
+        row.querySelector('input[type="number"]').required=false;
+      }
       row.querySelector(".remove").addEventListener("click",()=>{if(container.children.length>1)row.remove();});
       container.appendChild(row);
     }
     document.querySelectorAll("[data-add]").forEach(btn=>btn.addEventListener("click",()=>materialRow(btn.dataset.add)));
     materialRow("deliveryLines");materialRow("returnLines");
 
+    function getPendingQuantity(delivery,item){
+      const delivered=delivery.items
+        .filter(x=>x.material===item.material&&x.unit===item.unit)
+        .reduce((s,x)=>s+x.quantity,0);
+    
+      const returned=state.returns
+        .filter(r=>r.deliveryId===delivery.id)
+        .flatMap(r=>r.items)
+        .filter(x=>x.material===item.material&&x.unit===item.unit)
+        .reduce((s,x)=>s+x.quantity,0);
+    
+      return Math.max(0,delivered-returned);
+    }
+    
+    
+    function hasPendingMaterials(delivery){
+      return delivery.items.some(item=>
+        getPendingQuantity(delivery,item)>0
+      );
+    }
+
+    function getPendingQuantity(delivery,item){
+      const delivered=delivery.items
+        .filter(x=>x.material===item.material&&x.unit===item.unit)
+        .reduce((s,x)=>s+x.quantity,0);
+    
+      const returned=state.returns
+        .filter(r=>r.deliveryId===delivery.id)
+        .flatMap(r=>r.items)
+        .filter(x=>x.material===item.material&&x.unit===item.unit)
+        .reduce((s,x)=>s+x.quantity,0);
+    
+      return Math.max(0,delivered-returned);
+    }
+    
+    
+    function hasPendingMaterials(delivery){
+      return delivery.items.some(item=>
+        getPendingQuantity(delivery,item)>0
+      );
+    }
+    
     function getLines(containerId){
       return [...document.getElementById(containerId).querySelectorAll(".material-row")].map(row=>{
         const inputs=row.querySelectorAll("input,select");
@@ -382,7 +428,10 @@
       const optionsBox=document.getElementById("studentOptions");
     
       const students=[...new Set(
-        state.deliveries.map(d=>d.student.trim()).filter(Boolean)
+        state.deliveries
+          .filter(d=>hasPendingMaterials(d))
+          .map(d=>d.student.trim())
+          .filter(Boolean)
       )].sort((a,b)=>a.localeCompare(b));
     
       const query=search.trim().toLowerCase();
@@ -430,25 +479,32 @@
     function populateDeliveryOptions(student,selectedId=""){
       const select=document.getElementById("deliveryLink");
     
+      // Mostrar únicamente entregas con materiales pendientes
       const deliveries=state.deliveries.filter(d=>
         d.student.trim().toLowerCase()===student.trim().toLowerCase()
+        &&hasPendingMaterials(d)
       );
     
-      select.innerHTML='<option value="">Seleccionar fecha y materiales</option>';
+      select.innerHTML='<option value="">Seleccionar fecha y materiales pendientes</option>';
     
       deliveries.forEach(d=>{
         const option=document.createElement("option");
         option.value=d.id;
     
-        const materialsText=d.items.map(item=>
-          `${item.quantity} ${item.unit} ${item.material}`
-        ).join(", ");
+        // Mostrar únicamente materiales que todavía tienen saldo
+        const materialsText=d.items
+          .filter(item=>getPendingQuantity(d,item)>0)
+          .map(item=>{
+            const pending=getPendingQuantity(d,item);
+            return `${pending} ${item.unit} ${item.material}`;
+          })
+          .join(", ");
     
         option.textContent=`${d.date} · ${materialsText}`;
-    
         select.appendChild(option);
       });
     
+      // Conservar la selección si la entrega todavía tiene pendientes
       if(deliveries.some(d=>d.id===selectedId)){
         select.value=selectedId;
       }
@@ -526,14 +582,27 @@
       }
       updateReturnTimeLimit(d);
       ["student","tutor","activity","project","school"].forEach(k=>form.elements[k].value=d[k]);
-      const box=document.getElementById("returnLines");box.innerHTML="";
-      d.items.forEach(item=>{
-        materialRow("returnLines");
-        const row=box.lastElementChild,inputs=row.querySelectorAll("input,select");
-        inputs[1].value=item.unit;inputs[2].value=item.material;
-        const returned=state.returns.filter(r=>r.deliveryId===d.id).flatMap(r=>r.items).filter(x=>x.material===item.material&&x.unit===item.unit).reduce((s,x)=>s+x.quantity,0);
-        inputs[0].max=Math.max(0,item.quantity-returned);inputs[0].placeholder=`Máx. ${inputs[0].max}`;
-      });
+      const box=document.getElementById("returnLines");
+      box.innerHTML="";
+      
+      // Mostrar únicamente materiales con saldo pendiente
+      d.items
+        .filter(item=>getPendingQuantity(d,item)>0)
+        .forEach(item=>{
+          const pending=getPendingQuantity(d,item);
+      
+          materialRow("returnLines");
+      
+          const row=box.lastElementChild;
+          const inputs=row.querySelectorAll("input,select");
+      
+          inputs[1].value=item.unit;
+          inputs[2].value=item.material;
+      
+          // Establecer como máximo la cantidad pendiente
+          inputs[0].max=pending;
+          inputs[0].placeholder=`Máx. ${pending}`;
+        });
     });
     // Actualizar la hora mínima cuando cambia la fecha de devolución
     document.getElementById("returnDate").addEventListener("change",()=>{
@@ -560,20 +629,94 @@
     });
 
     document.getElementById("returnForm").addEventListener("submit",e=>{
-      e.preventDefault();const form=e.currentTarget,data=formData(form),delivery=state.deliveries.find(d=>d.id===data.deliveryId),items=getLines("returnLines");
-      if(!delivery){alert("Seleccione una entrega relacionada.");return;}
-      if(data.date<delivery.date){alert("La fecha de devolución no puede ser anterior a la fecha de entrega.");return;}
-      if(data.date===delivery.date && data.time<delivery.time){alert("La hora de devolución no puede ser anterior a la hora de entrega.");return;}
-      if(!items.length||items.some(x=>!Number.isInteger(x.quantity)||x.quantity<1||!x.unit||!x.material)){alert("Ingrese cantidades enteras mayores que cero y complete todas las líneas de devolución.");return;}
-      for(const item of items){
-        const delivered=delivery.items.filter(x=>x.material===item.material&&x.unit===item.unit).reduce((s,x)=>s+x.quantity,0);
-        const already=state.returns.filter(r=>r.deliveryId===delivery.id).flatMap(r=>r.items).filter(x=>x.material===item.material&&x.unit===item.unit).reduce((s,x)=>s+x.quantity,0);
-        if(item.quantity>delivered-already){alert(`La devolución de ${item.material} supera el saldo pendiente (${delivered-already}).`);return;}
+      e.preventDefault();
+    
+      const form=e.currentTarget;
+      const data=formData(form);
+      const delivery=state.deliveries.find(d=>d.id===data.deliveryId);
+    
+      if(!delivery){
+        alert("Seleccione una entrega relacionada.");
+        return;
       }
-      const r={...data,id:crypto.randomUUID(),items,kind:"return"};
+    
+      if(data.date<delivery.date){
+        alert("La fecha de devolución no puede ser anterior a la fecha de entrega.");
+        return;
+      }
+    
+      if(data.date===delivery.date && data.time<delivery.time){
+        alert("La hora de devolución no puede ser anterior a la hora de entrega.");
+        return;
+      }
+    
+      // Leer las cantidades y completar automáticamente las que estén vacías
+      const rows=[...document.getElementById("returnLines").querySelectorAll(".material-row")];
+    
+      const items=rows.map(row=>{
+        const inputs=row.querySelectorAll("input,select");
+    
+        const unit=inputs[1].value;
+        const material=inputs[2].value;
+        const enteredQuantity=inputs[0].value.trim();
+    
+        const pending=getPendingQuantity(delivery,{material,unit});
+    
+        return {
+          quantity:enteredQuantity==="" ? pending : Number(enteredQuantity),
+          unit,
+          material
+        };
+      }).filter(item=>item.quantity>0);
+    
+      if(!items.length){
+        alert("No hay materiales pendientes para devolver.");
+        return;
+      }
+    
+      if(items.some(x=>
+        !Number.isInteger(x.quantity) ||
+        x.quantity<1 ||
+        !x.unit ||
+        !x.material
+      )){
+        alert("Ingrese cantidades enteras mayores que cero y complete los materiales.");
+        return;
+      }
+    
+      // Verificar que no se devuelva más de lo pendiente
+      for(const item of items){
+        const pending=getPendingQuantity(delivery,item);
+    
+        if(item.quantity>pending){
+          alert(`La devolución de ${item.material} supera el saldo pendiente (${pending}).`);
+          return;
+        }
+      }
+    
+      // Registrar la devolución
+      const r={
+        ...data,
+        id:crypto.randomUUID(),
+        items,
+        kind:"return"
+      };
+    
       state.returns.push(r);
-      addCalendarEvent(`Devolución · ${r.student}`,eventDate(r),"#16834a",{...r,items});
-      renderLoans();refreshDeliveryOptions();form.reset();resetFormDefaults(form,"returnLines");
+    
+      addCalendarEvent(
+        `Devolución · ${r.student}`,
+        eventDate(r),
+        "#16834a",
+        {...r,items}
+      );
+    
+      renderLoans();
+      refreshDeliveryOptions();
+    
+      form.reset();
+      resetFormDefaults(form,"returnLines");
+    
       alert("Devolución publicada en el calendario de esta demostración.");
     });
 
