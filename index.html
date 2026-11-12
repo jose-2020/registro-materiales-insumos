@@ -663,14 +663,14 @@
         const pending=getPendingQuantity(delivery,{material,unit});
     
         return {
-          quantity:enteredQuantity==="" ? pending : Number(enteredQuantity),
+          quantity:enteredQuantity==="" ? 0 : Number(enteredQuantity),
           unit,
           material
         };
       }).filter(item=>item.quantity>0);
     
       if(!items.length){
-        alert("No hay materiales pendientes para devolver.");
+        alert("Ingrese una cantidad mayor que cero para al menos un material.");
         return;
       }
     
