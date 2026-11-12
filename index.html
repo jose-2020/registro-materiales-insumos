@@ -223,12 +223,12 @@
       <div class="notice"><strong>Versión de diseño:</strong> los registros de esta demostración se mantienen únicamente mientras la página está abierta. Todavía no están conectados a Supabase ni se guardan en la nube.</div>
       <div class="forms">
         <form class="panel movement-form" id="deliveryForm" data-kind="delivery">
-          <div class="panel-head"><h2>Material Entregado</h2><span class="tag out">SALIDA DE BODEGA</span></div>
+          <div class="panel-head"><h2>Material Entregado</h2><span class="tag out">SALIDA DEL LABORATORIO</span></div>
           <div class="fields">
             <div class="field"><label>Estudiante</label><input type="text" name="student" placeholder="Escriba el nombre del estudiante" required></div>
             <div class="field"><label>Tutor</label><input type="text" name="tutor" placeholder="Escriba el nombre del tutor" required></div>
-            <div class="field"><label>Investigación / Tesis / Docencia</label><select name="activity" required><option value="">Seleccionar tipo</option><option>Investigación</option><option>Tesis</option><option>Docencia</option></select></div>
-            <div class="field"><label>Código de proyecto / Nombre de tesis / Materia</label><input type="text" name="project" placeholder="Escriba el código, tesis o materia" required></div>
+            <div class="field"><label>Actividad a realizar</label><select name="activity" required><option value="">Seleccionar tipo</option><option>Docencia</option><option>Investigación</option><option>Tesis</option></select></div>
+            <div class="field"><label>Materia / Código de proyecto / Nombre de tesis </label><input type="text" name="project" placeholder="Escriba el código, tesis o materia" required></div>
             <div class="field"><label>Escuela</label><select name="school" required><option value="">Seleccionar escuela</option><option>Ingeniería</option><option>Ciencias Básicas</option><option>Biotecnología</option><option>Otra escuela</option></select></div>
             <div class="field"><label>Técnico/a</label><select name="technician" required><option value="">Seleccionar técnico/a</option><option>Melany</option><option>Johanna</option><option>Fernanda</option><option>José</option></select></div>
             <div class="field"><label>Fecha</label><input type="date" name="date" required></div>
@@ -243,14 +243,14 @@
         </form>
 
         <form class="panel movement-form" id="returnForm" data-kind="return">
-          <div class="panel-head"><h2>Material Devuelto</h2><span class="tag in">INGRESO A BODEGA</span></div>
+          <div class="panel-head"><h2>Material Devuelto</h2><span class="tag in">INGRESO AL LABORATORIO</span></div>
           <div class="fields">
             <div class="field full"><label>1. Buscar estudiante</label><div class="student-search"><input type="text" id="deliveryStudent" placeholder="Escriba el nombre del estudiante" autocomplete="off" required><div id="studentOptions" class="student-options"></div></div></div>
             <div class="field full"><label>2. Seleccionar fecha y materiales prestados</label><select name="deliveryId" id="deliveryLink" required><option value="">Primero seleccione un estudiante</option></select></div>
             <div class="field"><label>Estudiante</label><input type="text" name="student" placeholder="Escriba el nombre del estudiante" required></div>
             <div class="field"><label>Tutor</label><input type="text" name="tutor" placeholder="Escriba el nombre del tutor" required></div>
-            <div class="field"><label>Investigación / Tesis / Docencia</label><select name="activity" required><option value="">Seleccionar tipo</option><option>Investigación</option><option>Tesis</option><option>Docencia</option></select></div>
-            <div class="field"><label>Código de proyecto / Nombre de tesis / Materia</label><input type="text" name="project" placeholder="Escriba el código, tesis o materia" required></div>
+            <div class="field"><label>Actividad a realizar</label><select name="activity" required><option value="">Seleccionar tipo</option><option>Docencia</option><option>Investigación</option><option>Tesis</option></select></div>
+            <div class="field"><label>Materia / Código de proyecto / Nombre de tesis </label><input type="text" name="project" placeholder="Escriba el código, tesis o materia" required></div>
             <div class="field"><label>Escuela</label><select name="school" required><option value="">Seleccionar escuela</option><option>Ingeniería</option><option>Ciencias Básicas</option><option>Biotecnología</option><option>Otra escuela</option></select></div>
             <div class="field"><label>Técnico/a que recibe</label><select name="technician" required><option value="">Seleccionar técnico/a</option><option>Melany</option><option>Johanna</option><option>Fernanda</option><option>José</option></select></div>
             <div class="field"><label>Fecha de devolución</label><input type="date" name="date" id="returnDate" required></div>
