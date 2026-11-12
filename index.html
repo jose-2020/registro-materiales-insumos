@@ -211,7 +211,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Cantidad</th><th>Unidad</th><th>Material o insumo</th><th>Estudiante</th><th>Tutor</th><th>Escuela</th><th>Actividad</th><th>Proyecto / Tesis / Materia</th><th>Fecha de entrega</th><th>Última devolución</th><th>Técnico que recibe</th><th>Estado</th></tr></thead>
+            <thead><tr><th>Cantidad</th><th>Unidad</th><th>Material o insumo</th><th>Estudiante</th><th>Tutor</th><th>Escuela</th><th>Actividad</th><th>Proyecto / Tesis / Materia</th><th>Fecha de entrega</th><th>Fecha de devolución</th><th>Técnico que recibe</th><th>Estado</th></tr></thead>
             <tbody id="loanRows"><tr><td colspan="12" class="empty">Todavía no hay materiales registrados.</td></tr></tbody>
           </table>
         </div>
@@ -367,27 +367,116 @@
       const box=document.getElementById(linesId);box.innerHTML="";materialRow(linesId);
     }
     function renderLoans(){
-      const tbody=document.getElementById("loanRows");tbody.innerHTML="";
+      const tbody=document.getElementById("loanRows");
+      tbody.innerHTML="";
+
       const rows=[];
-      state.deliveries.forEach(d=>d.items.forEach((item,index)=>{
-        const matchingReturns=state.returns.filter(r=>r.deliveryId===d.id);
-        const returned=matchingReturns.flatMap(r=>r.items).filter(x=>x.material===item.material&&x.unit===item.unit).reduce((s,x)=>s+x.quantity,0);
-        const pending=Math.max(0,item.quantity-returned);
-        const lastReturn=matchingReturns.filter(r=>r.items.some(x=>x.material===item.material&&x.unit===item.unit)).sort((a,b)=>`${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`))[0];
-        rows.push({d,item,index,pending,returned,lastReturn,status:pending===0?"returned":"pending"});
-      }));
+
+      state.deliveries.forEach(d=>{
+        d.items.forEach((item,index)=>{
+
+          // Buscar todas las devoluciones asociadas a este material
+          const matchingReturns=state.returns
+            .filter(r=>r.deliveryId===d.id);
+
+          const returnedItems=matchingReturns.flatMap(r=>
+            r.items
+              .filter(x=>x.material===item.material&&x.unit===item.unit)
+              .map(x=>({
+                quantity:x.quantity,
+                date:r.date,
+                time:r.time,
+                technician:r.technician
+              }))
+          );
+
+          // Calcular la cantidad total devuelta y el saldo pendiente
+          const returned=returnedItems.reduce((s,x)=>s+x.quantity,0);
+          const pending=Math.max(0,item.quantity-returned);
+
+          // Crear una fila por cada devolución realizada
+          returnedItems.forEach(r=>{
+            rows.push({
+              quantity:r.quantity,
+              item,
+              d,
+              returnDate:r.date,
+              technician:r.technician,
+              status:"returned"
+            });
+          });
+
+          // Crear una fila adicional si todavía queda material pendiente
+          if(pending>0){
+            rows.push({
+              quantity:pending,
+              item,
+              d,
+              returnDate:"—",
+              technician:"—",
+              status:"pending"
+            });
+          }
+        });
+      });
+
+      // Aplicar búsqueda y filtro de estado
       const q=document.getElementById("tableSearch").value.trim().toLowerCase();
       const filter=document.getElementById("statusFilter").value;
+
       const visible=rows.filter(x=>{
-        const hay=[x.item.material,x.d.student,x.d.tutor,x.d.school,x.d.activity,x.d.project,x.d.technician].join(" ").toLowerCase();
+        const hay=[
+          x.item.material,
+          x.d.student,
+          x.d.tutor,
+          x.d.school,
+          x.d.activity,
+          x.d.project,
+          x.d.technician,
+          x.technician
+        ].join(" ").toLowerCase();
+
         return (!q||hay.includes(q))&&(!filter||x.status===filter);
       });
-      if(!visible.length){tbody.innerHTML='<tr><td colspan="12" class="empty">No hay registros que coincidan con la búsqueda.</td></tr>';return;}
+
+      if(!visible.length){
+        tbody.innerHTML='<tr><td colspan="12" class="empty">No hay registros que coincidan con la búsqueda.</td></tr>';
+        return;
+      }
+
+      // Dibujar las filas de la tabla
       visible.forEach(x=>{
-        const tr=document.createElement("tr");tr.className=x.status;
-        const cells=[x.pending,x.item.unit,x.item.material,x.d.student,x.d.tutor,x.d.school,x.d.activity,x.d.project,x.d.date,x.lastReturn?x.lastReturn.date:"—",x.lastReturn?x.lastReturn.technician:"—"];
-        cells.forEach(value=>{const td=document.createElement("td");td.textContent=value;tr.appendChild(td);});
-        const td=document.createElement("td");td.innerHTML=x.status==="returned"?'<span class="status yes">Devuelto</span>':'<span class="status no">Pendiente</span>';tr.appendChild(td);tbody.appendChild(tr);
+        const tr=document.createElement("tr");
+        tr.className=x.status;
+
+        const cells=[
+          x.quantity,
+          x.item.unit,
+          x.item.material,
+          x.d.student,
+          x.d.tutor,
+          x.d.school,
+          x.d.activity,
+          x.d.project,
+          x.d.date,
+          x.returnDate,
+          x.technician
+        ];
+
+        cells.forEach(value=>{
+          const td=document.createElement("td");
+          td.textContent=value;
+          tr.appendChild(td);
+        });
+
+        const td=document.createElement("td");
+
+        td.innerHTML=x.status==="returned"
+          ?'<span class="status yes">Devuelto</span>'
+          :'<span class="status no">Pendiente</span>';
+
+        tr.appendChild(td);
+        tbody.appendChild(tr);
       });
     }
     document.getElementById("tableSearch").addEventListener("input",renderLoans);
