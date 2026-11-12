@@ -270,10 +270,35 @@
       });
       if(state.deliveries.some(d=>d.id===previous))select.value=previous;
     }
+    function updateReturnTimeLimit(delivery){
+      const returnDate=document.getElementById("returnDate");
+      const returnTime=document.querySelector('#returnForm input[name="time"]');
+
+      // Si no hay entrega seleccionada o la devolución es otro día,
+      // no se establece una hora mínima
+      if(!delivery || returnDate.value!==delivery.date){
+        returnTime.removeAttribute("min");
+        return;
+      }
+
+      // Si es el mismo día, la hora mínima será la hora de entrega
+      returnTime.min=delivery.time;
+
+      // Corregir automáticamente una hora anterior
+      if(returnTime.value && returnTime.value<delivery.time){
+        returnTime.value=delivery.time;
+      }
+    }
     document.getElementById("deliveryLink").addEventListener("change",e=>{
-      const d=state.deliveries.find(x=>x.id===e.target.value);if(!d)return;
+      const d=state.deliveries.find(x=>x.id===e.target.value);
       const form=document.getElementById("returnForm");
       const returnDate=form.elements["date"];
+
+      if(!d){
+        returnDate.removeAttribute("min");
+        form.elements["time"].removeAttribute("min");
+        return;
+      }
 
       // La devolución no puede tener una fecha anterior a la entrega
       returnDate.min=d.date;
@@ -283,6 +308,7 @@
       if(returnDate.value<d.date){
         returnDate.value=d.date;
       }
+      updateReturnTimeLimit(d);
       ["student","tutor","activity","project","school"].forEach(k=>form.elements[k].value=d[k]);
       const box=document.getElementById("returnLines");box.innerHTML="";
       d.items.forEach(item=>{
@@ -292,6 +318,19 @@
         const returned=state.returns.filter(r=>r.deliveryId===d.id).flatMap(r=>r.items).filter(x=>x.material===item.material&&x.unit===item.unit).reduce((s,x)=>s+x.quantity,0);
         inputs[0].max=Math.max(0,item.quantity-returned);inputs[0].placeholder=`Máx. ${inputs[0].max}`;
       });
+    });
+    // Actualizar la hora mínima cuando cambia la fecha de devolución
+    document.getElementById("returnDate").addEventListener("change",()=>{
+      const deliveryId=document.getElementById("deliveryLink").value;
+      const delivery=state.deliveries.find(d=>d.id===deliveryId);
+      updateReturnTimeLimit(delivery);
+    });
+    // Limpiar los límites de fecha y hora al eliminar el formulario
+    document.getElementById("returnForm").addEventListener("reset",()=>{
+      setTimeout(()=>{
+        document.getElementById("returnDate").removeAttribute("min");
+        document.querySelector('#returnForm input[name="time"]').removeAttribute("min");
+      },0);
     });
 
     document.getElementById("deliveryForm").addEventListener("submit",e=>{
@@ -308,6 +347,7 @@
       e.preventDefault();const form=e.currentTarget,data=formData(form),delivery=state.deliveries.find(d=>d.id===data.deliveryId),items=getLines("returnLines");
       if(!delivery){alert("Seleccione una entrega relacionada.");return;}
       if(data.date<delivery.date){alert("La fecha de devolución no puede ser anterior a la fecha de entrega.");return;}
+      if(data.date===delivery.date && data.time<delivery.time){alert("La hora de devolución no puede ser anterior a la hora de entrega.");return;}
       if(!items.length||items.some(x=>!Number.isInteger(x.quantity)||x.quantity<1||!x.unit||!x.material)){alert("Ingrese cantidades enteras mayores que cero y complete todas las líneas de devolución.");return;}
       for(const item of items){
         const delivered=delivery.items.filter(x=>x.material===item.material&&x.unit===item.unit).reduce((s,x)=>s+x.quantity,0);
