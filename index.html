@@ -468,17 +468,11 @@
     
     function eventDate(data){return `${data.date}T${data.time||"00:00"}:00`;}
     function formatDate(dateString){
-      if(!dateString) return "";
+      if(!dateString || dateString==="—") return dateString || "";
     
-      const [year,month,day]=dateString.split("-").map(Number);
+      const [year,month,day]=dateString.split("-");
     
-      const date=new Date(year,month-1,day);
-    
-      return new Intl.DateTimeFormat("es-EC",{
-        day:"numeric",
-        month:"long",
-        year:"numeric"
-      }).format(date);
+      return `${day}-${month}-${year}`;
     }
     function addCalendarEvent(title,start,color,details){
       if(state.calendar){state.calendar.addEvent({title,start,backgroundColor:color,borderColor:color,extendedProps:{details}});}
@@ -573,7 +567,7 @@
           })
           .join(", ");
     
-        option.textContent=`${d.date} · ${materialsText}`;
+        option.textContent=`${formatDate(d.date)} · ${materialsText}`;
         select.appendChild(option);
       });
     
@@ -878,8 +872,8 @@
           x.d.school,
           x.d.activity,
           x.d.project,
-          x.d.date,
-          x.returnDate,
+          formatDate(x.d.date),
+          formatDate(x.returnDate),
           x.deliveryTechnician,
           x.receivingTechnician,
           x.status==="returned"?"Devuelto":"Pendiente"
@@ -909,8 +903,8 @@
           x.d.school,
           x.d.activity,
           x.d.project,
-          x.d.date,
-          x.returnDate,
+          formatDate(x.d.date),
+          formatDate(x.returnDate),
           x.deliveryTechnician,
           x.receivingTechnician
         ];
