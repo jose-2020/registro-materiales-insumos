@@ -229,7 +229,7 @@
             <div class="field"><label>Tutor</label><input type="text" name="tutor" placeholder="Escriba el nombre del tutor" required></div>
             <div class="field"><label>Actividad a realizar</label><select name="activity" required><option value="">Seleccionar tipo</option><option>Docencia</option><option>Investigación</option><option>Tesis</option></select></div>
             <div class="field"><label>Materia / Código de proyecto / Nombre de tesis </label><input type="text" name="project" placeholder="Escriba el código, tesis o materia" required></div>
-            <div class="field"><label>Escuela</label><select name="school" required><option value="">Seleccionar escuela</option><option>Ingeniería</option><option>Ciencias Básicas</option><option>Biotecnología</option><option>Otra escuela</option></select></div>
+            <div class="field"><label>Escuela</label><select name="school" class="school-select" required><option value="">Seleccionar escuela</option><option>Escuela de Ciencias Agropecuarias y Agroindustriales</option><option>Escuela de Ciencias Biológicas e Ingeniería</option><option>Escuela de Ciencias Físicas y Nanotecnología</option><option>Escuela de Ciencias Matemáticas y Computacionales</option><option>Escuela de Ciencias Químicas e Ingeniería</option><option>Escuela de Ciencias de la Tierra, Energía y Ambiente</option><option value="Otros">Otros</option></select><input type="text" class="school-other" placeholder="Escriba el nombre de la institución" style="display:none"></div>
             <div class="field"><label>Técnico/a</label><select name="technician" required><option value="">Seleccionar técnico/a</option><option>Fernanda Bosquez</option><option>Johanna Pilicita</option><option>José Toabanda</option></select></div>
             <div class="field"><label>Fecha</label><input type="date" name="date" required></div>
             <div class="field"><label>Hora</label><input type="time" name="time" required></div>
@@ -406,6 +406,66 @@
     function formData(form){
       const fd=new FormData(form);return Object.fromEntries(fd.entries());
     }
+
+    function updateSchoolField(select){
+      const form=select.closest("form");
+      const otherInput=form.querySelector(".school-other");
+      const isOther=select.value==="Otros";
+    
+      otherInput.style.display=isOther ? "block" : "none";
+      otherInput.required=isOther;
+    
+      if(!isOther){
+        otherInput.value="";
+      }
+    }
+    
+    
+    function getSchoolValue(form){
+      const select=form.querySelector(".school-select");
+      const otherInput=form.querySelector(".school-other");
+    
+      if(select.value==="Otros"){
+        return otherInput.value.trim();
+      }
+    
+      return select.value;
+    }
+    
+    
+    function setSchoolValue(form,value){
+      const select=form.querySelector(".school-select");
+      const otherInput=form.querySelector(".school-other");
+    
+      const optionExists=[...select.options].some(option=>
+        option.value===value
+      );
+    
+      if(optionExists){
+        select.value=value;
+        otherInput.value="";
+      }else{
+        select.value="Otros";
+        otherInput.value=value;
+      }
+    
+      updateSchoolField(select);
+    }
+
+    document.querySelectorAll(".school-select").forEach(select=>{
+      select.addEventListener("change",()=>{
+        updateSchoolField(select);
+      });
+    });
+
+    document.querySelectorAll(".movement-form").forEach(form=>{
+      form.addEventListener("reset",()=>{
+        setTimeout(()=>{
+          updateSchoolField(form.querySelector(".school-select"));
+        },0);
+      });
+    });
+    
     function eventDate(data){return `${data.date}T${data.time||"00:00"}:00`;}
     function addCalendarEvent(title,start,color,details){
       if(state.calendar){state.calendar.addEvent({title,start,backgroundColor:color,borderColor:color,extendedProps:{details}});}
@@ -560,9 +620,11 @@
         form.elements["time"].removeAttribute("min");
       
         // Limpiar los datos de la entrega anterior
-        ["student","tutor","activity","project","school"].forEach(k=>{
+        ["student","tutor","activity","project"].forEach(k=>{
           form.elements[k].value="";
         });
+        
+        setSchoolValue(form,"");
       
         // Limpiar los materiales anteriores
         const box=document.getElementById("returnLines");
@@ -581,7 +643,11 @@
         returnDate.value=d.date;
       }
       updateReturnTimeLimit(d);
-      ["student","tutor","activity","project","school"].forEach(k=>form.elements[k].value=d[k]);
+      ["student","tutor","activity","project"].forEach(k=>{
+        form.elements[k].value=d[k];
+      });
+
+      setSchoolValue(form,d.school);
       const box=document.getElementById("returnLines");
       box.innerHTML="";
       
@@ -619,7 +685,9 @@
     });
 
     document.getElementById("deliveryForm").addEventListener("submit",e=>{
-      e.preventDefault();const form=e.currentTarget,data=formData(form),items=getLines("deliveryLines");
+      e.preventDefault();const form=e.currentTarget;
+      const data=formData(form);data.school=getSchoolValue(form);
+      const items=getLines("deliveryLines");if(!data.school){alert("Ingrese o seleccione una escuela o institución.");return;}
       if(!items.length||items.some(x=>!Number.isInteger(x.quantity)||x.quantity<1||!x.unit||!x.material)){alert("Ingrese cantidades enteras mayores que cero y complete todas las líneas de materiales.");return;}
       const d={...data,id:crypto.randomUUID(),items,kind:"delivery"};
       state.deliveries.push(d);
@@ -633,6 +701,8 @@
     
       const form=e.currentTarget;
       const data=formData(form);
+      data.school=getSchoolValue(form);
+      
       const delivery=state.deliveries.find(d=>d.id===data.deliveryId);
     
       if(!delivery){
