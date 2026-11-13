@@ -163,6 +163,40 @@
     .fc .fc-daygrid-event{white-space:normal}
     .fc-event{cursor:pointer;}
     .fc .fc-timegrid-event{min-height:40px;}
+    /* Menú contextual del calendario */
+    .calendar-context-menu{
+      display:none;
+      position:fixed;
+      z-index:10000;
+      min-width:165px;
+      padding:5px;
+      background:#fff;
+      border:1px solid #d1d5db;
+      border-radius:8px;
+      box-shadow:0 4px 14px rgba(0,0,0,.18);
+    }
+    
+    .calendar-context-menu.show{
+      display:block;
+    }
+    
+    .calendar-context-menu button{
+      display:block;
+      width:100%;
+      padding:10px 12px;
+      border:0;
+      border-radius:5px;
+      background:#fff;
+      color:#1e293b;
+      text-align:left;
+      font-size:13px;
+      cursor:pointer;
+    }
+    
+    .calendar-context-menu button:hover{
+      background:#eaf2fb;
+      color:#174b83;
+    }
     .fc .fc-daygrid-event{min-height:24px;padding:2px;}
     .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
     .toolbar input{max-width:360px}
@@ -344,6 +378,11 @@
         <button class="btn light" id="closeModal">Cerrar</button>
       </div>
     </div>
+  </div>
+
+  <div id="calendarContextMenu" class="calendar-context-menu">
+    <button type="button" id="contextAddDelivery">＋ Entrega</button>
+    <button type="button" id="contextAddReturn">＋ Devolución</button>
   </div>
 
   <script>
@@ -1372,6 +1411,120 @@
     }));
     const modal=document.getElementById("eventModal");
 
+    // ======================================
+    // MENÚ CONTEXTUAL DEL CALENDARIO
+    // ======================================
+    
+    const calendarContextMenu=document.getElementById("calendarContextMenu");
+    
+    let contextCalendarDate="";
+    let contextCalendarTime="08:00";
+    
+    // Ocultar el menú
+    function hideCalendarContextMenu(){
+      calendarContextMenu.classList.remove("show");
+    }
+    
+    // Mostrar el menú en la posición del cursor
+    function showCalendarContextMenu(x,y){
+      calendarContextMenu.style.left="0px";
+      calendarContextMenu.style.top="0px";
+      calendarContextMenu.classList.add("show");
+    
+      const menuWidth=calendarContextMenu.offsetWidth;
+      const menuHeight=calendarContextMenu.offsetHeight;
+    
+      const left=Math.min(x,window.innerWidth-menuWidth-8);
+      const top=Math.min(y,window.innerHeight-menuHeight-8);
+    
+      calendarContextMenu.style.left=`${Math.max(8,left)}px`;
+      calendarContextMenu.style.top=`${Math.max(8,top)}px`;
+    }
+    
+    // Abrir un formulario nuevo desde el calendario
+    function openNewCalendarEntry(kind,date,time){
+    
+      hideCalendarContextMenu();
+    
+      // Salir del modo edición, si estaba activo
+      editingRecord=null;
+      currentCalendarRecord=null;
+    
+      const isDelivery=kind==="delivery";
+    
+      const form=document.getElementById(
+        isDelivery ? "deliveryForm" : "returnForm"
+      );
+    
+      const linesId=isDelivery ? "deliveryLines" : "returnLines";
+    
+      // Limpiar el formulario
+      form.reset();
+      resetFormDefaults(form,linesId);
+    
+      // Colocar la fecha y hora seleccionadas
+      form.elements["date"].value=date;
+      form.elements["time"].value=time;
+    
+      // Restaurar el texto del botón
+      form.querySelector('button[type="submit"]').textContent=
+        isDelivery ? "Publicar entrega" : "Publicar devolución";
+    
+      // Cambiar a la vista Registro
+      document.querySelectorAll(".nav button").forEach(btn=>{
+        btn.classList.toggle("active",btn.dataset.view==="registro");
+      });
+    
+      document.querySelectorAll(".view").forEach(view=>{
+        view.classList.toggle(
+          "active",
+          view.id==="view-registro"
+        );
+      });
+    
+      // Ocultar las opciones de estudiantes anteriores
+      document.getElementById("studentOptions").classList.remove("show");
+    
+      // Subir al formulario
+      window.scrollTo({top:0,behavior:"smooth"});
+    }
+    
+    // Seleccionar Entrega
+    document.getElementById("contextAddDelivery").addEventListener("click",()=>{
+      openNewCalendarEntry(
+        "delivery",
+        contextCalendarDate,
+        contextCalendarTime
+      );
+    });
+    
+    // Seleccionar Devolución
+    document.getElementById("contextAddReturn").addEventListener("click",()=>{
+      openNewCalendarEntry(
+        "return",
+        contextCalendarDate,
+        contextCalendarTime
+      );
+    });
+    
+    // Cerrar el menú al hacer clic fuera
+    document.addEventListener("click",e=>{
+      if(!e.target.closest("#calendarContextMenu")){
+        hideCalendarContextMenu();
+      }
+    });
+    
+    // Cerrar con Escape
+    document.addEventListener("keydown",e=>{
+      if(e.key==="Escape"){
+        hideCalendarContextMenu();
+      }
+    });
+    
+    // Cerrar al desplazar la página
+    window.addEventListener("scroll",hideCalendarContextMenu,true);
+    window.addEventListener("resize",hideCalendarContextMenu);
+
     document.getElementById("closeModal").addEventListener("click",()=>{
       modal.classList.remove("show");
       currentCalendarRecord=null;
@@ -1476,6 +1629,54 @@
           slotMinTime:"06:00:00",
           slotMaxTime:"22:00:00"
         });
+
+                // Detectar clic derecho sobre los espacios libres del calendario
+        const calendarElement=document.getElementById("calendar");
+
+        calendarElement.addEventListener("contextmenu",e=>{
+
+          // No abrir el menú sobre actividades existentes
+          if(e.target.closest(".fc-event")){
+            e.preventDefault();
+            hideCalendarContextMenu();
+            return;
+          }
+
+          let selectedDate="";
+          let selectedTime="08:00";
+
+          // Vista mensual: obtener la fecha de la celda
+          const dayCell=e.target.closest(".fc-daygrid-day[data-date]");
+
+          if(dayCell){
+            selectedDate=dayCell.dataset.date;
+          }
+
+          // Vistas semanal y diaria: obtener fecha y hora
+          const timeSlot=e.target.closest(".fc-timegrid-slot[data-time]");
+          const timeColumn=e.target.closest(".fc-timegrid-col[data-date]");
+
+          if(timeSlot && timeColumn){
+            selectedDate=timeColumn.dataset.date;
+            selectedTime=timeSlot.dataset.time.slice(0,5);
+          }
+
+          // Si no se hizo clic en una fecha u hora válida, no mostrar el menú
+          if(!selectedDate){
+            hideCalendarContextMenu();
+            return;
+          }
+
+          e.preventDefault();
+
+          contextCalendarDate=selectedDate;
+          contextCalendarTime=selectedTime;
+
+          showCalendarContextMenu(e.clientX,e.clientY);
+        });
+
+        state.calendar.render();
+        
         state.calendar.render();
       }else{document.getElementById("calendar").innerHTML='<p class="empty">No se pudo cargar el calendario. Revise su conexión a internet.</p>';}
     });
