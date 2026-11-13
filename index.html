@@ -956,7 +956,7 @@
     
       if(p.kind==="return"){
         dateDetails=`
-          <strong>Fecha de entrega:</strong> ${formatDate(p.deliveryDate)}<br>
+          <strong>Fecha de entrega:</strong> ${formatDate(p.deliveryDate)} ${p.deliveryTime||""}<br>
           <strong>Fecha de devolución:</strong> ${formatDate(p.date)} ${p.time||""}<br>
         `;
       }else{
