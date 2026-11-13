@@ -785,7 +785,12 @@
         `Devolución · ${r.student}`,
         eventDate(r),
         "#16834a",
-        {...r,items,deliveryDate:delivery.date}
+        {
+          ...r,
+          items,
+          deliveryDate:delivery.date,
+          deliveryTime:delivery.time
+        }
       );
     
       renderLoans();
