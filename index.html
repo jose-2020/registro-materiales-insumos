@@ -139,8 +139,15 @@
     .add-line{border:1px dashed #8aaed3;background:#f5f9fe;color:#1b5a96;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-size:12px}
     .panel-actions{display:flex;gap:9px;margin-top:17px}
     .btn{border:0;border-radius:9px;padding:11px 17px;font-weight:750;cursor:pointer}
-    .btn.primary{background:var(--blue2);color:#fff}.btn.success{background:var(--green);color:#fff}
+    .btn.primary{background:var(--blue2);color:#fff}
+    .btn.success{background:var(--green);color:#fff}
     .btn.light{background:#eef2f7;color:#334155}
+    .btn.edit{background:#2563eb;color:#fff}
+    .btn.danger{background:#c62828;color:#fff}
+    
+    .btn.edit:hover{background:#174b83}
+    .btn.danger:hover{background:#a51f1f}
+    .btn.light:hover{background:#dbe3ec}
     .btn:disabled{opacity:.5;cursor:not-allowed}
     .hint{font-size:11px;color:var(--muted);line-height:1.5;margin:9px 0 0}
     .section-card{padding:20px;margin-top:20px}
@@ -326,13 +333,27 @@
   </main>
   <footer>Registro de Materiales e Insumos · Prototipo de interfaz</footer>
 
-  <div class="modal-backdrop" id="eventModal"><div class="modal"><h3 id="modalTitle">Detalle de actividad</h3><div id="modalBody"></div><div class="modal-actions"><button class="btn light" id="closeModal">Cerrar</button></div></div></div>
+  <div class="modal-backdrop" id="eventModal">
+    <div class="modal">
+      <h3 id="modalTitle">Detalle de actividad</h3>
+      <div id="modalBody"></div>
+  
+      <div class="modal-actions">
+        <button class="btn edit" id="editEvent">Editar</button>
+        <button class="btn danger" id="deleteEvent">Eliminar</button>
+        <button class="btn light" id="closeModal">Cerrar</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const technicians = ["Fernanda Bosquez","Johanna Pilicita","José Toabanda"];
     const units = ["Unidad","Unidades","g","kg","mg","mL","L","Caja","Paquete","Frasco","Metro"];
     const materials = ["Tubos de ensayo","Vasos de precipitación","Puntas para micropipeta","Guantes","Papel filtro","Probeta","Matraz Erlenmeyer","Reactivo de laboratorio"];
     const state = { deliveries: [], returns: [], calendar: null };
+
+    let editingRecord = null;
+    let currentCalendarRecord = null;
     const today = new Date();
     const dateValue = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
     document.querySelectorAll('input[type="date"]').forEach(el=>el.value=dateValue);
@@ -462,6 +483,14 @@
       form.addEventListener("reset",()=>{
         setTimeout(()=>{
           updateSchoolField(form.querySelector(".school-select"));
+    
+          const kind=form.dataset.kind;
+    
+          if(editingRecord?.kind===kind){
+            editingRecord=null;
+            form.querySelector('button[type="submit"]').textContent=
+              kind==="delivery" ? "Publicar entrega" : "Publicar devolución";
+          }
         },0);
       });
     });
@@ -474,8 +503,43 @@
     
       return `${day}-${month}-${year}`;
     }
-    function addCalendarEvent(title,start,color,details){
-      if(state.calendar){state.calendar.addEvent({title,start,backgroundColor:color,borderColor:color,extendedProps:{details}});}
+    function renderCalendarEvents(){
+      if(!state.calendar) return;
+    
+      state.calendar.removeAllEvents();
+    
+      // Mostrar todas las entregas
+      state.deliveries.forEach(d=>{
+        state.calendar.addEvent({
+          title:`Entrega · ${d.student}`,
+          start:eventDate(d),
+          backgroundColor:"#2563eb",
+          borderColor:"#2563eb",
+          extendedProps:{
+            details:{...d,kind:"delivery"}
+          }
+        });
+      });
+    
+      // Mostrar todas las devoluciones
+      state.returns.forEach(r=>{
+        const delivery=state.deliveries.find(d=>d.id===r.deliveryId);
+    
+        state.calendar.addEvent({
+          title:`Devolución · ${r.student}`,
+          start:eventDate(r),
+          backgroundColor:"#16834a",
+          borderColor:"#16834a",
+          extendedProps:{
+            details:{
+              ...r,
+              kind:"return",
+              deliveryDate:delivery?.date||"",
+              deliveryTime:delivery?.time||""
+            }
+          }
+        });
+      });
     }
     function refreshDeliveryOptions(){
       const studentInput=document.getElementById("deliveryStudent");
@@ -692,14 +756,108 @@
     });
 
     document.getElementById("deliveryForm").addEventListener("submit",e=>{
-      e.preventDefault();const form=e.currentTarget;
-      const data=formData(form);data.school=getSchoolValue(form);
-      const items=getLines("deliveryLines");if(!data.school){alert("Ingrese o seleccione una escuela o institución.");return;}
-      if(!items.length||items.some(x=>!Number.isInteger(x.quantity)||x.quantity<1||!x.unit||!x.material)){alert("Ingrese cantidades enteras mayores que cero y complete todas las líneas de materiales.");return;}
-      const d={...data,id:crypto.randomUUID(),items,kind:"delivery"};
+      e.preventDefault();
+    
+      const form=e.currentTarget;
+      const data=formData(form);
+      data.school=getSchoolValue(form);
+    
+      const items=getLines("deliveryLines");
+    
+      if(!data.school){
+        alert("Ingrese o seleccione una escuela o institución.");
+        return;
+      }
+    
+      if(!items.length||items.some(x=>
+        !Number.isInteger(x.quantity) ||
+        x.quantity<1 ||
+        !x.unit ||
+        !x.material
+      )){
+        alert("Ingrese cantidades enteras mayores que cero y complete todas las líneas de materiales.");
+        return;
+      }
+    
+      // Si estamos editando una entrega existente
+      if(editingRecord?.kind==="delivery"){
+    
+        const existing=state.deliveries.find(d=>
+          d.id===editingRecord.id
+        );
+    
+        if(!existing){
+          alert("No se encontró la entrega que desea editar.");
+          return;
+        }
+    
+        // No permitir reducir cantidades por debajo de lo ya devuelto
+        for(const r of state.returns.filter(r=>r.deliveryId===existing.id)){
+          for(const returnedItem of r.items){
+    
+            const deliveredQuantity=items
+              .filter(x=>
+                x.material===returnedItem.material &&
+                x.unit===returnedItem.unit
+              )
+              .reduce((sum,x)=>sum+x.quantity,0);
+    
+            const totalReturned=state.returns
+              .filter(x=>x.deliveryId===existing.id)
+              .flatMap(x=>x.items)
+              .filter(x=>
+                x.material===returnedItem.material &&
+                x.unit===returnedItem.unit
+              )
+              .reduce((sum,x)=>sum+x.quantity,0);
+    
+            if(deliveredQuantity<totalReturned){
+              alert(
+                `No se puede reducir la cantidad de ${returnedItem.material}. Ya se han devuelto ${totalReturned} unidades.`
+              );
+              return;
+            }
+          }
+        }
+    
+        Object.assign(existing,data,{
+          items,
+          kind:"delivery"
+        });
+    
+        editingRecord=null;
+    
+        renderCalendarEvents();
+        refreshDeliveryOptions();
+        renderLoans();
+    
+        form.reset();
+        resetFormDefaults(form,"deliveryLines");
+    
+        form.querySelector('button[type="submit"]').textContent="Publicar entrega";
+    
+        alert("La entrega se actualizó correctamente.");
+    
+        return;
+      }
+    
+      // Nueva entrega
+      const d={
+        ...data,
+        id:crypto.randomUUID(),
+        items,
+        kind:"delivery"
+      };
+    
       state.deliveries.push(d);
-      addCalendarEvent(`Entrega · ${d.student}`,eventDate(d),"#2563eb",{...d,items});
-      refreshDeliveryOptions();renderLoans();form.reset();resetFormDefaults(form,"deliveryLines");
+    
+      renderCalendarEvents();
+      refreshDeliveryOptions();
+      renderLoans();
+    
+      form.reset();
+      resetFormDefaults(form,"deliveryLines");
+    
       alert("Entrega publicada en el calendario de esta demostración.");
     });
 
@@ -709,7 +867,7 @@
       const form=e.currentTarget;
       const data=formData(form);
       data.school=getSchoolValue(form);
-      
+    
       const delivery=state.deliveries.find(d=>d.id===data.deliveryId);
     
       if(!delivery){
@@ -727,8 +885,9 @@
         return;
       }
     
-      // Leer las cantidades y completar automáticamente las que estén vacías
-      const rows=[...document.getElementById("returnLines").querySelectorAll(".material-row")];
+      const rows=[
+        ...document.getElementById("returnLines").querySelectorAll(".material-row")
+      ];
     
       const items=rows.map(row=>{
         const inputs=row.querySelectorAll("input,select");
@@ -736,8 +895,6 @@
         const unit=inputs[1].value;
         const material=inputs[2].value;
         const enteredQuantity=inputs[0].value.trim();
-    
-        const pending=getPendingQuantity(delivery,{material,unit});
     
         return {
           quantity:enteredQuantity==="" ? 0 : Number(enteredQuantity),
@@ -761,17 +918,65 @@
         return;
       }
     
-      // Verificar que no se devuelva más de lo pendiente
-      for(const item of items){
-        const pending=getPendingQuantity(delivery,item);
+      // Identificar si estamos editando una devolución
+      const oldReturn=editingRecord?.kind==="return"
+        ? state.returns.find(r=>r.id===editingRecord.id)
+        : null;
     
-        if(item.quantity>pending){
-          alert(`La devolución de ${item.material} supera el saldo pendiente (${pending}).`);
+      if(editingRecord?.kind==="return" && !oldReturn){
+        alert("No se encontró la devolución que desea editar.");
+        return;
+      }
+    
+      // Verificar las cantidades disponibles.
+      // Si editamos, se devuelve temporalmente al saldo la cantidad
+      // que ya estaba registrada en esa misma devolución.
+      for(const item of items){
+    
+        let available=getPendingQuantity(delivery,item);
+    
+        if(oldReturn && oldReturn.deliveryId===delivery.id){
+          available+=oldReturn.items
+            .filter(x=>
+              x.material===item.material &&
+              x.unit===item.unit
+            )
+            .reduce((sum,x)=>sum+x.quantity,0);
+        }
+    
+        if(item.quantity>available){
+          alert(
+            `La devolución de ${item.material} supera el saldo pendiente (${available}).`
+          );
           return;
         }
       }
     
-      // Registrar la devolución
+      if(oldReturn){
+    
+        // Actualizar la devolución existente
+        Object.assign(oldReturn,data,{
+          items,
+          kind:"return"
+        });
+    
+        editingRecord=null;
+    
+        renderCalendarEvents();
+        renderLoans();
+        refreshDeliveryOptions();
+    
+        form.reset();
+        resetFormDefaults(form,"returnLines");
+    
+        form.querySelector('button[type="submit"]').textContent="Publicar devolución";
+    
+        alert("La devolución se actualizó correctamente.");
+    
+        return;
+      }
+    
+      // Registrar una nueva devolución
       const r={
         ...data,
         id:crypto.randomUUID(),
@@ -781,18 +986,7 @@
     
       state.returns.push(r);
     
-      addCalendarEvent(
-        `Devolución · ${r.student}`,
-        eventDate(r),
-        "#16834a",
-        {
-          ...r,
-          items,
-          deliveryDate:delivery.date,
-          deliveryTime:delivery.time
-        }
-      );
-    
+      renderCalendarEvents();
       renderLoans();
       refreshDeliveryOptions();
     
@@ -807,6 +1001,186 @@
       form.querySelectorAll('input[type="time"]').forEach(el=>el.value="08:00");
       const box=document.getElementById(linesId);box.innerHTML="";materialRow(linesId);
     }
+    
+    function setMaterialLines(containerId,items){
+      const box=document.getElementById(containerId);
+    
+      box.innerHTML="";
+    
+      items.forEach(item=>{
+        materialRow(containerId);
+    
+        const row=box.lastElementChild;
+        const inputs=row.querySelectorAll("input,select");
+    
+        inputs[0].value=item.quantity;
+        inputs[1].value=item.unit;
+        inputs[2].value=item.material;
+      });
+    
+      if(!items.length){
+        materialRow(containerId);
+      }
+    }
+    
+    
+    function openDeliveryForEditing(d){
+      const form=document.getElementById("deliveryForm");
+    
+      ["student","tutor","activity","project","technician","date","time","observation"]
+        .forEach(key=>{
+          form.elements[key].value=d[key]||"";
+        });
+    
+      setSchoolValue(form,d.school||"");
+      setMaterialLines("deliveryLines",d.items);
+    
+      editingRecord={
+        kind:"delivery",
+        id:d.id
+      };
+    
+      form.querySelector('button[type="submit"]').textContent="Guardar cambios";
+    }
+    
+    
+    function openReturnForEditing(r){
+      const form=document.getElementById("returnForm");
+    
+      const delivery=state.deliveries.find(d=>d.id===r.deliveryId);
+    
+      if(!delivery){
+        alert("No se encontró la entrega relacionada con esta devolución.");
+        return;
+      }
+    
+      // Mostrar el estudiante
+      document.getElementById("deliveryStudent").value=r.student;
+    
+      // Actualizar las opciones de entregas del estudiante
+      populateDeliveryOptions(r.student);
+    
+      const select=document.getElementById("deliveryLink");
+    
+      // Incluir la entrega aunque ya no tenga saldo pendiente
+      if(![...select.options].some(option=>option.value===r.deliveryId)){
+        const option=document.createElement("option");
+        option.value=r.deliveryId;
+        option.textContent=`${formatDate(delivery.date)} · ${delivery.items.map(x=>`${x.quantity} ${x.unit} ${x.material}`).join(", ")}`;
+        select.appendChild(option);
+      }
+    
+      select.value=r.deliveryId;
+    
+      // Cargar los datos relacionados con la entrega
+      select.dispatchEvent(new Event("change"));
+    
+      // Cargar los datos propios de la devolución
+      ["student","tutor","activity","project","technician","date","time","observation"]
+        .forEach(key=>{
+          form.elements[key].value=r[key]||"";
+        });
+    
+      setSchoolValue(form,r.school||"");
+    
+      // Recuperar los materiales y cantidades originales de esta devolución
+      setMaterialLines("returnLines",r.items);
+    
+      // Conservar la fecha mínima de la entrega
+      form.elements["date"].min=delivery.date;
+    
+      updateReturnTimeLimit(delivery);
+    
+      editingRecord={
+        kind:"return",
+        id:r.id
+      };
+    
+      form.querySelector('button[type="submit"]').textContent="Guardar cambios";
+    }
+    
+    
+    function startEditingCalendarRecord(){
+      if(!currentCalendarRecord) return;
+    
+      const {kind,id}=currentCalendarRecord;
+    
+      modal.classList.remove("show");
+    
+      // Ir a la sección Registro
+      document.querySelectorAll(".nav button").forEach(btn=>{
+        btn.classList.toggle("active",btn.dataset.view==="registro");
+      });
+    
+      document.querySelectorAll(".view").forEach(view=>{
+        view.classList.toggle("active",view.id==="view-registro");
+      });
+    
+      if(kind==="delivery"){
+        const delivery=state.deliveries.find(d=>d.id===id);
+    
+        if(delivery){
+          openDeliveryForEditing(delivery);
+        }
+      }
+    
+      if(kind==="return"){
+        const r=state.returns.find(x=>x.id===id);
+    
+        if(r){
+          openReturnForEditing(r);
+        }
+      }
+    
+      window.scrollTo({top:0,behavior:"smooth"});
+    }
+    
+    
+    function deleteCalendarRecord(){
+      if(!currentCalendarRecord) return;
+    
+      const {kind,id}=currentCalendarRecord;
+    
+      if(kind==="delivery"){
+        const delivery=state.deliveries.find(d=>d.id===id);
+    
+        if(!delivery) return;
+    
+        const relatedReturns=state.returns.filter(r=>r.deliveryId===id).length;
+    
+        const message=relatedReturns
+          ? `¿Eliminar la entrega de ${delivery.student} y sus ${relatedReturns} devolución(es) asociada(s)? También se eliminarán sus registros de la tabla.`
+          : `¿Eliminar la entrega de ${delivery.student}? También se eliminará su registro de la tabla.`;
+    
+        if(!confirm(message)) return;
+    
+        // Eliminar la entrega y todas sus devoluciones
+        state.deliveries=state.deliveries.filter(d=>d.id!==id);
+        state.returns=state.returns.filter(r=>r.deliveryId!==id);
+      }
+    
+      if(kind==="return"){
+        const r=state.returns.find(x=>x.id===id);
+    
+        if(!r) return;
+    
+        if(!confirm(`¿Eliminar la devolución de ${r.student}? Se actualizará el saldo pendiente.`)){
+          return;
+        }
+    
+        state.returns=state.returns.filter(x=>x.id!==id);
+      }
+    
+      modal.classList.remove("show");
+      currentCalendarRecord=null;
+    
+      renderCalendarEvents();
+      renderLoans();
+      refreshDeliveryOptions();
+    
+      alert("El registro y sus datos relacionados se actualizaron correctamente.");
+    }
+    
     function renderLoans(){
       const tbody=document.getElementById("loanRows");
       tbody.innerHTML="";
@@ -947,11 +1321,31 @@
       }
     }));
     const modal=document.getElementById("eventModal");
-    document.getElementById("closeModal").addEventListener("click",()=>modal.classList.remove("show"));
+
+    document.getElementById("closeModal").addEventListener("click",()=>{
+      modal.classList.remove("show");
+      currentCalendarRecord=null;
+    });
+    
+    document.getElementById("editEvent").addEventListener("click",()=>{
+      startEditingCalendarRecord();
+    });
+    
+    document.getElementById("deleteEvent").addEventListener("click",()=>{
+      deleteCalendarRecord();
+    });
+    
+    
     function showEvent(info){
       const p=info.event.extendedProps.details||{};
     
       document.getElementById("modalTitle").textContent=info.event.title;
+    
+      // Identificar la publicación seleccionada
+      currentCalendarRecord={
+        kind:p.kind,
+        id:p.id
+      };
     
       const lines=(p.items||[])
         .map(x=>`<li>${x.quantity} ${escapeHtml(x.unit)} · ${escapeHtml(x.material)}</li>`)
