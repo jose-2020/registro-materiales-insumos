@@ -1044,6 +1044,7 @@
     }
     
     
+    
     function openReturnForEditing(r){
       const form=document.getElementById("returnForm");
     
@@ -1083,8 +1084,56 @@
     
       setSchoolValue(form,r.school||"");
     
-      // Recuperar los materiales y cantidades originales de esta devolución
-      setMaterialLines("returnLines",r.items);
+      // Mostrar todos los materiales de la entrega
+      const box=document.getElementById("returnLines");
+      box.innerHTML="";
+    
+      // Evitar mostrar materiales duplicados
+      const uniqueMaterials=[];
+    
+      delivery.items.forEach(item=>{
+        const exists=uniqueMaterials.some(x=>
+          x.material===item.material && x.unit===item.unit
+        );
+    
+        if(!exists){
+          uniqueMaterials.push(item);
+        }
+      });
+    
+      uniqueMaterials.forEach(item=>{
+    
+        // Cantidad que sigue pendiente de devolución
+        const pending=getPendingQuantity(delivery,item);
+    
+        // Cantidad que ya estaba registrada en esta devolución
+        const currentReturn=r.items
+          .filter(x=>
+            x.material===item.material &&
+            x.unit===item.unit
+          )
+          .reduce((sum,x)=>sum+x.quantity,0);
+    
+        // Saldo disponible incluyendo lo que estamos editando
+        const available=pending+currentReturn;
+    
+        materialRow("returnLines");
+    
+        const row=box.lastElementChild;
+        const inputs=row.querySelectorAll("input,select");
+    
+        // Mostrar la cantidad de esta devolución, si existe
+        inputs[0].value=currentReturn>0 ? currentReturn : "";
+    
+        inputs[1].value=item.unit;
+        inputs[2].value=item.material;
+    
+        // Limitar la cantidad que se puede registrar
+        inputs[0].max=available;
+        inputs[0].placeholder=available>0
+          ? `Máx. ${available}`
+          : "Sin saldo";
+      });
     
       // Conservar la fecha mínima de la entrega
       form.elements["date"].min=delivery.date;
@@ -1098,6 +1147,7 @@
     
       form.querySelector('button[type="submit"]').textContent="Guardar cambios";
     }
+
     
     
     function startEditingCalendarRecord(){
