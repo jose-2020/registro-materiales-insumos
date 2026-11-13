@@ -467,6 +467,19 @@
     });
     
     function eventDate(data){return `${data.date}T${data.time||"00:00"}:00`;}
+    function formatDate(dateString){
+      if(!dateString) return "";
+    
+      const [year,month,day]=dateString.split("-").map(Number);
+    
+      const date=new Date(year,month-1,day);
+    
+      return new Intl.DateTimeFormat("es-EC",{
+        day:"numeric",
+        month:"long",
+        year:"numeric"
+      }).format(date);
+    }
     function addCalendarEvent(title,start,color,details){
       if(state.calendar){state.calendar.addEvent({title,start,backgroundColor:color,borderColor:color,extendedProps:{details}});}
     }
@@ -778,7 +791,7 @@
         `Devolución · ${r.student}`,
         eventDate(r),
         "#16834a",
-        {...r,items}
+        {...r,items,deliveryDate:delivery.date}
       );
     
       renderLoans();
@@ -937,9 +950,39 @@
     const modal=document.getElementById("eventModal");
     document.getElementById("closeModal").addEventListener("click",()=>modal.classList.remove("show"));
     function showEvent(info){
-      const p=info.event.extendedProps.details||{};document.getElementById("modalTitle").textContent=info.event.title;
-      const lines=(p.items||[]).map(x=>`<li>${x.quantity} ${x.unit} · ${x.material}</li>`).join("");
-      document.getElementById("modalBody").innerHTML=`<p><strong>Fecha:</strong> ${p.date||""} ${p.time||""}<br><strong>Estudiante:</strong> ${p.student||""}<br><strong>Tutor:</strong> ${p.tutor||""}<br><strong>Proyecto / Materia:</strong> ${p.project||""}<br><strong>Técnico/a:</strong> ${p.technician||""}</p><strong>Materiales</strong><ul>${lines}</ul><p><strong>Observación:</strong> ${escapeHtml(p.observation||"Sin observaciones")}</p>`;
+      const p=info.event.extendedProps.details||{};
+    
+      document.getElementById("modalTitle").textContent=info.event.title;
+    
+      const lines=(p.items||[])
+        .map(x=>`<li>${x.quantity} ${escapeHtml(x.unit)} · ${escapeHtml(x.material)}</li>`)
+        .join("");
+    
+      let dateDetails="";
+    
+      if(p.kind==="return"){
+        dateDetails=`
+          <strong>Fecha de entrega:</strong> ${formatDate(p.deliveryDate)}<br>
+          <strong>Fecha de devolución:</strong> ${formatDate(p.date)} ${p.time||""}<br>
+        `;
+      }else{
+        dateDetails=`
+          <strong>Fecha de entrega:</strong> ${formatDate(p.date)} ${p.time||""}<br>
+        `;
+      }
+    
+      document.getElementById("modalBody").innerHTML=`
+        <p>
+          ${dateDetails}
+          <strong>Tutor:</strong> ${escapeHtml(p.tutor||"")}<br>
+          <strong>Actividad:</strong> ${escapeHtml(p.activity||"")}<br>
+          <strong>Técnico/a:</strong> ${escapeHtml(p.technician||"")}
+        </p>
+        <strong>Materiales</strong>
+        <ul>${lines}</ul>
+        <p><strong>Observación:</strong> ${escapeHtml(p.observation||"Sin observaciones")}</p>
+      `;
+    
       modal.classList.add("show");
     }
     function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
