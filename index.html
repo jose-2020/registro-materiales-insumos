@@ -1630,50 +1630,76 @@
           slotMaxTime:"22:00:00"
         });
 
-                // Detectar clic derecho sobre los espacios libres del calendario
+        
+        // Detectar clic derecho sobre los espacios libres del calendario
         const calendarElement=document.getElementById("calendar");
-
+        
         calendarElement.addEventListener("contextmenu",e=>{
-
+        
           // No abrir el menú sobre actividades existentes
           if(e.target.closest(".fc-event")){
             e.preventDefault();
             hideCalendarContextMenu();
             return;
           }
-
+        
           let selectedDate="";
           let selectedTime="08:00";
-
-          // Vista mensual: obtener la fecha de la celda
+        
+          // ======================================
+          // VISTA MENSUAL
+          // ======================================
           const dayCell=e.target.closest(".fc-daygrid-day[data-date]");
-
+        
           if(dayCell){
             selectedDate=dayCell.dataset.date;
           }
-
-          // Vistas semanal y diaria: obtener fecha y hora
-          const timeSlot=e.target.closest(".fc-timegrid-slot[data-time]");
-          const timeColumn=e.target.closest(".fc-timegrid-col[data-date]");
-
-          if(timeSlot && timeColumn){
-            selectedDate=timeColumn.dataset.date;
-            selectedTime=timeSlot.dataset.time.slice(0,5);
+        
+          // ======================================
+          // VISTAS SEMANAL Y DIARIA
+          // ======================================
+          if(!selectedDate){
+        
+            // Buscar la columna correspondiente a la fecha
+            const columns=[
+              ...calendarElement.querySelectorAll(".fc-timegrid-col[data-date]")
+            ];
+        
+            const selectedColumn=columns.find(column=>{
+              const rect=column.getBoundingClientRect();
+              return e.clientX>=rect.left && e.clientX<=rect.right;
+            });
+        
+            // Buscar la fila correspondiente a la hora
+            const timeSlots=[
+              ...calendarElement.querySelectorAll(".fc-timegrid-slots tr[data-time]")
+            ];
+        
+            const selectedSlot=timeSlots.find(slot=>{
+              const rect=slot.getBoundingClientRect();
+              return e.clientY>=rect.top && e.clientY<=rect.bottom;
+            });
+        
+            if(selectedColumn && selectedSlot){
+              selectedDate=selectedColumn.dataset.date;
+              selectedTime=selectedSlot.dataset.time.slice(0,5);
+            }
           }
-
-          // Si no se hizo clic en una fecha u hora válida, no mostrar el menú
+        
+          // Si no se encontró una fecha válida, no mostrar el menú
           if(!selectedDate){
             hideCalendarContextMenu();
             return;
           }
-
+        
           e.preventDefault();
-
+        
           contextCalendarDate=selectedDate;
           contextCalendarTime=selectedTime;
-
+        
           showCalendarContextMenu(e.clientX,e.clientY);
         });
+
         
         state.calendar.render();
       }else{document.getElementById("calendar").innerHTML='<p class="empty">No se pudo cargar el calendario. Revise su conexión a internet.</p>';}
