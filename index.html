@@ -1582,7 +1582,7 @@
       modal.classList.add("show");
     }
     function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-    let lastTouchEventClick = 0;
+    /*let lastTouchEventClick = 0;*/ 
     document.addEventListener("DOMContentLoaded",()=>{
       if(window.FullCalendar){
         state.calendar=new FullCalendar.Calendar(document.getElementById("calendar"),{
@@ -1605,7 +1605,7 @@
             day:"Día"
           },
 
-          eventDidMount: function(info) {
+         /* eventDidMount: function(info) {
             info.el.addEventListener("pointerup", function(e) {
               if (e.pointerType === "touch") {
                 lastTouchEventClick = Date.now();
@@ -1620,6 +1620,10 @@
               return;
             }
 
+            showEvent(info);
+          },*/
+
+          eventClick: function(info) {
             showEvent(info);
           },
 
