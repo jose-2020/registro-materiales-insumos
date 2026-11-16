@@ -1410,6 +1410,8 @@
       }
     }));
     const modal=document.getElementById("eventModal");
+    let lastTouchEventClick = 0;
+    let touchOpenTimer = null;
 
     // ======================================
     // MENÚ CONTEXTUAL DEL CALENDARIO
@@ -1582,7 +1584,6 @@
       modal.classList.add("show");
     }
     function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-    /*let lastTouchEventClick = 0;*/ 
     document.addEventListener("DOMContentLoaded",()=>{
       if(window.FullCalendar){
         state.calendar=new FullCalendar.Calendar(document.getElementById("calendar"),{
@@ -1623,8 +1624,40 @@
             showEvent(info);
           },*/
 
+          eventDidMount: function(info) {
+
+            // Detectar el toque en dispositivos móviles
+            info.el.addEventListener("pointerup", function(e) {
+          
+              if(e.pointerType !== "touch") return;
+          
+              // Registrar el momento del toque
+              lastTouchEventClick = Date.now();
+          
+              // Cancelar una apertura táctil anterior pendiente
+              clearTimeout(touchOpenTimer);
+          
+              // Esperar a que el navegador termine de procesar el toque
+              const selectedEvent = info.event;
+          
+              touchOpenTimer = setTimeout(() => {
+                showEvent({ event: selectedEvent });
+              }, 300);
+          
+            });
+          
+          },
+          
           eventClick: function(info) {
+          
+            // Evitar que el mismo toque abra el modal dos veces
+            if(Date.now() - lastTouchEventClick < 700) {
+              return;
+            }
+          
+            // En computadora, abrir normalmente
             showEvent(info);
+          
           },
 
           eventDisplay:"block",
