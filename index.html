@@ -61,7 +61,15 @@
     .nav button{border:1px solid var(--line);background:#fff;color:#334155;border-radius:10px;padding:11px 17px;font-weight:650;cursor:pointer}
     .nav button.active{background:var(--blue);border-color:var(--blue);color:#fff}
     .view{display:none}.view.active{display:block}
-    .forms{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+    .forms{display:block;}
+    .movement-form{display:none;}
+    .movement-form.active{display:block;}
+    /* Pestañas de los formularios */
+    .form-tabs{display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--line);}
+    .form-tab{border:1px solid var(--line);border-bottom:0;background:#fff;color:#475569;border-radius:9px 9px 0 0;padding:11px 18px;font-weight:700;cursor:pointer;font-size:13px;}
+    .form-tab.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+    .form-tab:hover:not(.active){background:var(--blue-soft);color:var(--blue);}
+    
     .panel,.section-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
     .panel{padding:20px}
     .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
@@ -262,8 +270,20 @@
 
     <section class="view active" id="view-registro">
       <div class="notice"><strong>Versión de diseño:</strong> los registros de esta demostración se mantienen únicamente mientras la página está abierta. Todavía no están conectados a Supabase ni se guardan en la nube.</div>
+
+      <!-- Pestañas de Registro -->
+      <div class="form-tabs">
+        <button type="button" class="form-tab active" data-form-tab="delivery">
+          ▤ Material Entregado
+        </button>
+      
+        <button type="button" class="form-tab" data-form-tab="return">
+          ▣ Material Devuelto
+        </button>
+      </div>
+      
       <div class="forms">
-        <form class="panel movement-form" id="deliveryForm" data-kind="delivery">
+        <form class="panel movement-form active" id="deliveryForm" data-kind="delivery">
           <div class="panel-head"><h2>Material Entregado</h2><span class="tag out">SALIDA DEL LABORATORIO</span></div>
           <div class="fields">
             <div class="field"><label>Estudiante</label><input type="text" name="student" placeholder="Escriba el nombre del estudiante" required></div>
@@ -271,7 +291,7 @@
             <div class="field"><label>Actividad a realizar</label><select name="activity" required><option value="">Seleccionar tipo</option><option>Docencia</option><option>Investigación</option><option>Tesis</option></select></div>
             <div class="field"><label>Materia / Código de proyecto / Nombre de tesis </label><input type="text" name="project" placeholder="Escriba el código, tesis o materia" required></div>
             <div class="field"><label>Escuela</label><select name="school" class="school-select" required><option value="">Seleccionar escuela</option><option>Escuela de Ciencias Agropecuarias y Agroindustriales</option><option>Escuela de Ciencias Biológicas e Ingeniería</option><option>Escuela de Ciencias Físicas y Nanotecnología</option><option>Escuela de Ciencias Matemáticas y Computacionales</option><option>Escuela de Ciencias Químicas e Ingeniería</option><option>Escuela de Ciencias de la Tierra, Energía y Ambiente</option><option value="Otros">Otra Institución</option></select><input type="text" class="school-other" placeholder="Escriba el nombre de la institución" style="display:none"></div>
-            <div class="field"><label>Técnico/a</label><select name="technician" required><option value="">Seleccionar técnico/a</option><option>Fernanda Bosquez</option><option>Johanna Pilicita</option><option>José Toabanda</option></select></div>
+            <div class="field"><label>Agendado por:</label><select name="technician" required><option value="">Seleccionar técnico/a</option><option>Fernanda Bosquez</option><option>Johanna Pilicita</option><option>José Toabanda</option></select></div>
             <div class="field"><label>Fecha</label><input type="date" name="date" required></div>
             <div class="field"><label>Hora</label><input type="time" name="time" required></div>
           </div>
@@ -293,7 +313,7 @@
             <div class="field"><label>Actividad a realizar</label><select name="activity" required><option value="">Seleccionar tipo</option><option>Docencia</option><option>Investigación</option><option>Tesis</option></select></div>
             <div class="field"><label>Materia / Código de proyecto / Nombre de tesis </label><input type="text" name="project" placeholder="Escriba el código, tesis o materia" required></div>
             <div class="field"><label>Escuela</label><select name="school" class="school-select" required><option value="">Seleccionar escuela</option><option value="Escuela de Ciencias Agropecuarias y Agroindustriales">Escuela de Ciencias Agropecuarias y Agroindustriales</option><option value="Escuela de Ciencias Biológicas e Ingeniería">Escuela de Ciencias Biológicas e Ingeniería</option><option value="Escuela de Ciencias Físicas y Nanotecnología">Escuela de Ciencias Físicas y Nanotecnología</option><option value="Escuela de Ciencias Matemáticas y Computacionales">Escuela de Ciencias Matemáticas y Computacionales</option><option value="Escuela de Ciencias Químicas e Ingeniería">Escuela de Ciencias Químicas e Ingeniería</option><option value="Escuela de Ciencias de la Tierra, Energía y Ambiente">Escuela de Ciencias de la Tierra, Energía y Ambiente</option><option value="Otros">Otra Institución</option></select><input type="text" class="school-other" placeholder="Escribir nombre de la institución" style="display:none; margin-top:8px;"></div>
-            <div class="field"><label>Técnico/a que recibe</label><select name="technician" required><option value="">Seleccionar técnico/a</option><option>Fernanda Bosquez</option><option>Johanna Pilicita</option><option>José Toabanda</option></select></div>
+            <div class="field"><label>Recibido por:</label><select name="technician" required><option value="">Seleccionar técnico/a</option><option>Fernanda Bosquez</option><option>Johanna Pilicita</option><option>José Toabanda</option></select></div>
             <div class="field"><label>Fecha de devolución</label><input type="date" name="date" id="returnDate" required></div>
             <div class="field"><label>Hora</label><input type="time" name="time" required></div>
           </div>
@@ -332,8 +352,8 @@
                 <th>Proyecto / Tesis / Materia</th>
                 <th>Fecha de entrega</th>
                 <th>Fecha de devolución</th>
-                <th>Técnico que entrega</th>
-                <th>Técnico que recibe</th>
+                <th>Agendado por</th>
+                <th>Recibido por</th>
                 <th>Estado</th>
               </tr>
               <tr class="filter-row">
@@ -1409,6 +1429,30 @@
           },100);
       }
     }));
+
+    // ======================================
+    // PESTAÑAS DE MATERIAL ENTREGADO Y DEVUELTO
+    // ======================================
+    
+    document.querySelectorAll(".form-tab").forEach(tab=>{
+      tab.addEventListener("click",()=>{
+    
+        const selectedForm=tab.dataset.formTab;
+    
+        // Activar la pestaña seleccionada
+        document.querySelectorAll(".form-tab").forEach(button=>{
+          button.classList.toggle("active",button===tab);
+        });
+    
+        // Mostrar únicamente el formulario seleccionado
+        document.getElementById("deliveryForm")
+          .classList.toggle("active",selectedForm==="delivery");
+    
+        document.getElementById("returnForm")
+          .classList.toggle("active",selectedForm==="return");
+    
+      });
+    });
     const modal=document.getElementById("eventModal");
     let lastTouchEventClick = 0;
     let touchOpenTimer = null;
@@ -1568,13 +1612,17 @@
           <strong>Fecha de entrega:</strong> ${formatDate(p.date)} ${p.time||""}<br>
         `;
       }
+
+      const technicianLabel=p.kind==="delivery"
+        ? "Agendado por:"
+        : "Recibido por:";
     
       document.getElementById("modalBody").innerHTML=`
         <p>
           ${dateDetails}
           <strong>Tutor:</strong> ${escapeHtml(p.tutor||"")}<br>
           <strong>Actividad:</strong> ${escapeHtml(p.activity||"")}<br>
-          <strong>Técnico/a:</strong> ${escapeHtml(p.technician||"")}
+          <strong>${technicianLabel}</strong> ${escapeHtml(p.technician||"")}
         </p>
         <strong>Materiales</strong>
         <ul>${lines}</ul>
