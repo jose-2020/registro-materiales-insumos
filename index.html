@@ -1224,6 +1224,9 @@
       document.querySelectorAll(".view").forEach(view=>{
         view.classList.toggle("active",view.id==="view-registro");
       });
+
+      // Activar el formulario correspondiente
+      selectMovementForm(kind);
     
       if(kind==="delivery"){
         const delivery=state.deliveries.find(d=>d.id===id);
@@ -1437,29 +1440,37 @@
       }
     }));
 
+    
     // ======================================
     // PESTAÑAS DE MATERIAL ENTREGADO Y DEVUELTO
     // ======================================
     
+    // Función central para mostrar el formulario correcto
+    function selectMovementForm(kind){
+    
+      // Activar la pestaña correspondiente
+      document.querySelectorAll(".form-tab").forEach(tab=>{
+        tab.classList.toggle(
+          "active",
+          tab.dataset.formTab===kind
+        );
+      });
+    
+      // Mostrar únicamente el formulario seleccionado
+      document.getElementById("deliveryForm")
+        .classList.toggle("active",kind==="delivery");
+    
+      document.getElementById("returnForm")
+        .classList.toggle("active",kind==="return");
+    }
+    
+    // Cambio manual mediante las pestañas
     document.querySelectorAll(".form-tab").forEach(tab=>{
       tab.addEventListener("click",()=>{
-    
-        const selectedForm=tab.dataset.formTab;
-    
-        // Activar la pestaña seleccionada
-        document.querySelectorAll(".form-tab").forEach(button=>{
-          button.classList.toggle("active",button===tab);
-        });
-    
-        // Mostrar únicamente el formulario seleccionado
-        document.getElementById("deliveryForm")
-          .classList.toggle("active",selectedForm==="delivery");
-    
-        document.getElementById("returnForm")
-          .classList.toggle("active",selectedForm==="return");
-    
+        selectMovementForm(tab.dataset.formTab);
       });
     });
+
     const modal=document.getElementById("eventModal");
     let lastTouchEventClick = 0;
     let touchOpenTimer = null;
@@ -1534,6 +1545,9 @@
           view.id==="view-registro"
         );
       });
+
+      // Activar el formulario correspondiente
+      selectMovementForm(kind);
     
       // Ocultar las opciones de estudiantes anteriores
       document.getElementById("studentOptions").classList.remove("show");
