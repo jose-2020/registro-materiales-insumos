@@ -1241,7 +1241,14 @@
         }
       }
     
-      window.scrollTo({top:0,behavior:"smooth"});
+      const targetForm=document.getElementById(
+        kind==="delivery" ? "deliveryForm" : "returnForm"
+      );
+      
+      targetForm.scrollIntoView({
+        behavior:"smooth",
+        block:"start"
+      });
     }
     
     
@@ -1531,8 +1538,11 @@
       // Ocultar las opciones de estudiantes anteriores
       document.getElementById("studentOptions").classList.remove("show");
     
-      // Subir al formulario
-      window.scrollTo({top:0,behavior:"smooth"});
+      // Ir directamente al formulario seleccionado
+      form.scrollIntoView({
+        behavior:"smooth",
+        block:"start"
+      });
     }
     
     // Seleccionar Entrega
