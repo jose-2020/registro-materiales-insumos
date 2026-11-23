@@ -241,6 +241,46 @@
     .modal-backdrop{display:none;position:fixed;inset:0;background:#0f172a88;z-index:20;align-items:center;justify-content:center;padding:18px}
     .modal-backdrop.show{display:flex}.modal{background:#fff;border-radius:14px;padding:20px;max-width:520px;width:100%;box-shadow:0 20px 60px #0003}
     .modal h3{margin:0 0 12px}.modal p{font-size:13px;line-height:1.6;color:#475569}
+    /* Confirmación de entrega */
+    .delivery-confirmation{
+      margin-top:14px;
+      padding:12px;
+      background:#f8fafc;
+      border:1px solid #dbe3ec;
+      border-radius:9px;
+    }
+    
+    .delivery-confirmation label{
+      display:block;
+      margin-bottom:7px;
+    }
+    
+    .delivery-confirmation-controls{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    
+    .delivery-confirmation-controls select{
+      flex:1;
+    }
+    
+    .btn-confirm-delivery{
+      width:38px;
+      height:38px;
+      flex-shrink:0;
+      border:0;
+      border-radius:8px;
+      background:#16834a;
+      color:#fff;
+      font-size:19px;
+      font-weight:800;
+      cursor:pointer;
+    }
+    
+    .btn-confirm-delivery:hover{
+      background:#12643a;
+    }
     .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
     footer{text-align:center;color:#8793a3;font-size:11px;padding:22px}
     @media(max-width:900px){.forms{grid-template-columns:1fr}.wrap{padding:14px}.panel{padding:16px}}
@@ -330,7 +370,14 @@
 
     <section class="view" id="view-calendario">
       <div class="section-card">
-        <div class="section-title"><h2>Calendario de actividades</h2><div class="legend"><span><i class="dot" style="background:#2563eb"></i>Entrega</span><span><i class="dot" style="background:#16834a"></i>Devolución</span></div></div>
+        <div class="section-title">
+          <h2>Calendario de actividades</h2>
+          <div class="legend">
+            <span><i class="dot" style="background:#f4c542"></i>Entrega pendiente</span>
+            <span><i class="dot" style="background:#2563eb"></i>Entrega confirmada</span>
+            <span><i class="dot" style="background:#16834a"></i>Devolución</span>
+          </div>
+        </div>
         <div class="calendar-scroll"><div id="calendar"></div></div>
       </div>
     </section>
@@ -353,6 +400,7 @@
                 <th>Fecha de entrega</th>
                 <th>Fecha de devolución</th>
                 <th>Agendado por</th>
+                <th>Entregado por</th>
                 <th>Recibido por</th>
                 <th>Estado</th>
               </tr>
@@ -369,6 +417,7 @@
                 <th><input type="text" data-column-filter="9" placeholder="Filtrar"></th>
                 <th><input type="text" data-column-filter="10" placeholder="Filtrar"></th>
                 <th><input type="text" data-column-filter="11" placeholder="Filtrar"></th>
+                <th><input type="text" data-column-filter="12" placeholder="Filtrar"></th>
                 <th>
                   <select data-column-filter="12">
                     <option value="">Todos</option>
@@ -378,7 +427,7 @@
                 </th>
               </tr>
             </thead>
-            <tbody id="loanRows"><tr><td colspan="13" class="empty">Todavía no hay materiales registrados.</td></tr></tbody>
+            <tbody id="loanRows"><tr><td colspan="14" class="empty">Todavía no hay materiales registrados.</td></tr></tbody>
           </table>
         </div>
         <p class="hint">El saldo se calcula automáticamente: cantidad entregada menos la suma de las devoluciones asociadas a esa entrega. El estado no se modifica manualmente.</p>
@@ -569,11 +618,19 @@
     
       // Mostrar todas las entregas
       state.deliveries.forEach(d=>{
+      
+        // Amarillo: pendiente de confirmación
+        // Azul: entrega confirmada
+        const eventColor=d.deliveryConfirmed
+          ? "#2563eb"
+          : "#f4c542";
+      
         state.calendar.addEvent({
           title:`Entrega · ${d.student}`,
           start:eventDate(d),
-          backgroundColor:"#2563eb",
-          borderColor:"#2563eb",
+          backgroundColor:eventColor,
+          borderColor:eventColor,
+          textColor:"#1e293b",
           extendedProps:{
             details:{...d,kind:"delivery"}
           }
@@ -905,6 +962,8 @@
         ...data,
         id:crypto.randomUUID(),
         items,
+        deliveredBy:"",
+        deliveryConfirmed:false,
         kind:"delivery"
       };
     
@@ -1334,7 +1393,8 @@
               item,
               d,
               returnDate:r.date,
-              deliveryTechnician:d.technician,
+              scheduledBy:d.technician,
+              deliveryTechnician:d.deliveryConfirmed ? d.deliveredBy : "—",
               receivingTechnician:r.technician,
               status:"returned"
             });
@@ -1347,7 +1407,8 @@
               item,
               d,
               returnDate:"—",
-              deliveryTechnician:d.technician,
+              scheduledBy:d.technician,
+              deliveryTechnician:d.deliveryConfirmed ? d.deliveredBy : "—",
               receivingTechnician:"—",
               status:"pending"
             });
@@ -1372,6 +1433,7 @@
           x.d.project,
           formatDate(x.d.date),
           formatDate(x.returnDate),
+          x.scheduledBy,
           x.deliveryTechnician,
           x.receivingTechnician,
           x.status==="returned"?"Devuelto":"Pendiente"
@@ -1383,7 +1445,7 @@
       });
     
       if(!visible.length){
-        tbody.innerHTML='<tr><td colspan="13" class="empty">No hay registros que coincidan con los filtros.</td></tr>';
+        tbody.innerHTML='<tr><td colspan="14" class="empty">No hay registros que coincidan con los filtros.</td></tr>';
         return;
       }
     
@@ -1403,6 +1465,7 @@
           x.d.project,
           formatDate(x.d.date),
           formatDate(x.returnDate),
+          x.scheduledBy,
           x.deliveryTechnician,
           x.receivingTechnician
         ];
@@ -1637,25 +1700,144 @@
         `;
       }
 
-      const technicianLabel=p.kind==="delivery"
-        ? "Agendado por:"
-        : "Recibido por:";
-    
+      // Buscar la entrega relacionada cuando se abre una devolución
+      const delivery=p.kind==="return"
+        ? state.deliveries.find(d=>d.id===p.deliveryId)
+        : p;
+
+      // Datos de los tres responsables
+      const scheduledBy=delivery?.technician||"—";
+
+      const deliveredBy=delivery?.deliveryConfirmed
+        ? delivery.deliveredBy
+        : "—";
+
+      const receivedBy=p.kind==="return"
+        ? (p.technician||"—")
+        : "";
+
+      // Encabezado de responsables
+      let technicianDetails="";
+
+      if(p.kind==="delivery"){
+
+        technicianDetails=`
+          <strong>Agendado por:</strong> ${escapeHtml(scheduledBy)}
+          ${p.deliveryConfirmed
+            ? `<br><strong>Entregado por:</strong> ${escapeHtml(deliveredBy)}`
+            : ""}
+        `;
+
+      }else{
+
+        technicianDetails=`
+          <strong>Agendado por:</strong> ${escapeHtml(scheduledBy)}<br>
+          <strong>Entregado por:</strong> ${escapeHtml(deliveredBy)}<br>
+          <strong>Recibido por:</strong> ${escapeHtml(receivedBy)}
+        `;
+      }
+
+      // Selector y botón para confirmar la entrega
+      const confirmationHTML=p.kind==="delivery"
+        ? `
+          <div class="delivery-confirmation">
+            <label for="deliveredBySelect">Entregado por:</label>
+
+            <div class="delivery-confirmation-controls">
+              <select id="deliveredBySelect">
+                <option value="">Seleccionar técnico/a</option>
+                ${technicians.map(name=>`
+                  <option value="${escapeHtml(name)}"
+                    ${p.deliveredBy===name?"selected":""}>
+                    ${escapeHtml(name)}
+                  </option>
+                `).join("")}
+              </select>
+
+              <button
+                type="button"
+                class="btn-confirm-delivery"
+                id="confirmDeliveryBtn"
+                title="Confirmar entrega">
+                ✓
+              </button>
+            </div>
+          </div>
+        `
+        : "";
+
       document.getElementById("modalBody").innerHTML=`
         <p>
           ${dateDetails}
           <strong>Tutor:</strong> ${escapeHtml(p.tutor||"")}<br>
           <strong>Actividad:</strong> ${escapeHtml(p.activity||"")}<br>
-          <strong>${technicianLabel}</strong> ${escapeHtml(p.technician||"")}
+          ${technicianDetails}
         </p>
+
         <strong>Materiales</strong>
         <ul>${lines}</ul>
-        <p><strong>Observación:</strong> ${escapeHtml(p.observation||"Sin observaciones")}</p>
+
+        <p>
+          <strong>Observación:</strong>
+          ${escapeHtml(p.observation||"Sin observaciones")}
+        </p>
+
+        ${confirmationHTML}
       `;
     
       modal.classList.add("show");
     }
     function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+    // ======================================
+    // CONFIRMAR ENTREGA
+    // ======================================
+    
+    document.getElementById("modalBody").addEventListener("click",e=>{
+    
+      const button=e.target.closest("#confirmDeliveryBtn");
+    
+      if(!button) return;
+    
+      if(!currentCalendarRecord || currentCalendarRecord.kind!=="delivery"){
+        return;
+      }
+    
+      const technician=document.getElementById("deliveredBySelect").value;
+    
+      if(!technician){
+        alert("Seleccione el técnico que realizó la entrega.");
+        return;
+      }
+    
+      const delivery=state.deliveries.find(
+        d=>d.id===currentCalendarRecord.id
+      );
+    
+      if(!delivery){
+        alert("No se encontró la entrega seleccionada.");
+        return;
+      }
+    
+      // Guardar el técnico que realizó la entrega
+      delivery.deliveredBy=technician;
+      delivery.deliveryConfirmed=true;
+    
+      // Actualizar calendario y tabla
+      renderCalendarEvents();
+      renderLoans();
+    
+      // Volver a mostrar los detalles actualizados
+      const updatedEvent=state.calendar.getEvents().find(event=>
+        event.extendedProps.details?.kind==="delivery" &&
+        event.extendedProps.details?.id===delivery.id
+      );
+    
+      if(updatedEvent){
+        showEvent({event:updatedEvent});
+      }
+    
+      alert("La entrega ha sido confirmada correctamente.");
+    });
     document.addEventListener("DOMContentLoaded",()=>{
       if(window.FullCalendar){
         state.calendar=new FullCalendar.Calendar(document.getElementById("calendar"),{
