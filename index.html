@@ -630,7 +630,7 @@
           start:eventDate(d),
           backgroundColor:eventColor,
           borderColor:eventColor,
-          textColor:"#1e293b",
+          textColor:d.deliveryConfirmed ? "#ffffff" : "#1e293b",
           extendedProps:{
             details:{...d,kind:"delivery"}
           }
