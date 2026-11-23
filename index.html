@@ -1374,7 +1374,9 @@
     
       const rows=[];
     
-      state.deliveries.forEach(d=>{
+      state.deliveries
+        .filter(d=>d.deliveryConfirmed)
+        .forEach(d=>{
         d.items.forEach(item=>{
     
           // Buscar las devoluciones asociadas a esta entrega
