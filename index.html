@@ -676,7 +676,7 @@
     
       const students=[...new Set(
         state.deliveries
-          .filter(d=>hasPendingMaterials(d))
+          .filter(d=>d.deliveryConfirmed && hasPendingMaterials(d))
           .map(d=>d.student.trim())
           .filter(Boolean)
       )].sort((a,b)=>a.localeCompare(b));
@@ -726,10 +726,12 @@
     function populateDeliveryOptions(student,selectedId=""){
       const select=document.getElementById("deliveryLink");
     
-      // Mostrar únicamente entregas con materiales pendientes
+      // Mostrar únicamente entregas confirmadas por un técnico
+      // que todavía tengan materiales pendientes
       const deliveries=state.deliveries.filter(d=>
-        d.student.trim().toLowerCase()===student.trim().toLowerCase()
-        &&hasPendingMaterials(d)
+        d.deliveryConfirmed &&
+        d.student.trim().toLowerCase()===student.trim().toLowerCase() &&
+        hasPendingMaterials(d)
       );
     
       select.innerHTML='<option value="">Seleccionar fecha y materiales pendientes</option>';
@@ -801,6 +803,13 @@
       const d=state.deliveries.find(x=>x.id===e.target.value);
       const form=document.getElementById("returnForm");
       const returnDate=form.elements["date"];
+
+      // No permitir devoluciones de entregas todavía no confirmadas
+      if(d && !d.deliveryConfirmed){
+        e.target.value="";
+        alert("Esta entrega todavía no ha sido confirmada por un técnico.");
+        return;
+      }
 
       if(!d){
         returnDate.removeAttribute("min");
@@ -1822,9 +1831,10 @@
       delivery.deliveredBy=technician;
       delivery.deliveryConfirmed=true;
     
-      // Actualizar calendario y tabla
+      // Actualizar calendario, tabla y opciones de devolución
       renderCalendarEvents();
       renderLoans();
+      refreshDeliveryOptions();
     
       // Volver a mostrar los detalles actualizados
       const updatedEvent=state.calendar.getEvents().find(event=>
