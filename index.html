@@ -282,6 +282,37 @@
       background:#12643a;
     }
     .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+    /* Botón X para cerrar el cuadro de detalles */
+    .modal{
+      position:relative;
+    }
+    
+    .modal-close{
+      position:absolute;
+      top:10px;
+      right:12px;
+      width:32px;
+      height:32px;
+      border:0;
+      border-radius:7px;
+      background:transparent;
+      color:#64748b;
+      font-size:27px;
+      line-height:1;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    
+    .modal-close:hover{
+      background:#f1f5f9;
+      color:#c62828;
+    }
+    
+    .modal h3{
+      padding-right:35px;
+    }
     /* Configuración para imprimir los detalles de una actividad */
     @media print{
       body *{
@@ -471,6 +502,10 @@
 
   <div class="modal-backdrop" id="eventModal">
     <div class="modal">
+      <button type="button" class="modal-close" id="closeModal" title="Cerrar" aria-label="Cerrar">
+        &times;
+      </button>
+    
       <h3 id="modalTitle">Detalle de actividad</h3>
       <div id="modalBody"></div>
   
@@ -478,7 +513,6 @@
         <button class="btn primary" id="printEvent">Imprimir</button>
         <button class="btn edit" id="editEvent">Editar</button>
         <button class="btn danger" id="deleteEvent">Eliminar</button>
-        <button class="btn light" id="closeModal">Cerrar</button>
       </div>
     </div>
   </div>
