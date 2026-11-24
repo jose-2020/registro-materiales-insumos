@@ -1864,6 +1864,7 @@
       const box=document.getElementById(linesId);box.innerHTML="";materialRow(linesId);
     }
     
+    
     function setMaterialLines(containerId, items) {
         const box = document.getElementById(containerId);
     
@@ -1873,16 +1874,32 @@
             materialRow(containerId);
     
             const row = box.lastElementChild;
+    
             const inputs = row.querySelectorAll("input, select");
     
-            inputs[0].value = item.quantity;
-            inputs[1].value =
-                materialsCatalog.find(m => m.id === resolveMaterialId(item))?.unit
-                || item.unit
-                || "";
-            
-            inputs[2].value = resolveMaterialId(item);
+            const materialId = resolveMaterialId(item);
     
+            const selectedMaterial = materialsCatalog.find(
+                material => material.id === materialId
+            );
+    
+            // Cantidad
+            inputs[0].value = item.quantity;
+    
+            // Unidad
+            inputs[1].value =
+                selectedMaterial?.unit || item.unit || "";
+    
+            // Seleccionar el material mediante su UUID
+            inputs[2].value = materialId;
+    
+            // Mostrar también la descripción en el buscador visible
+            const searchInput = row.querySelector(
+                ".material-search-input"
+            );
+    
+            searchInput.value =
+                selectedMaterial?.description || item.material || "";
         });
     
         if (!items.length) {
@@ -1891,6 +1908,7 @@
     
         refreshMaterialOptions(containerId);
     }
+
     
     
     function openDeliveryForEditing(d){
