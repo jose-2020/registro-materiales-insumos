@@ -136,6 +136,71 @@
       color:#64748b;
       font-size:12px;
     }
+        /* Buscador inteligente de materiales */
+    .material-search{
+      position:relative;
+      width:100%;
+      min-width:0;
+    }
+    
+    .material-search input{
+      width:100%;
+      padding:9px 8px;
+    }
+    
+    .material-options{
+      display:none;
+      position:absolute;
+      top:calc(100% + 4px);
+      left:0;
+      right:0;
+      max-height:240px;
+      overflow-y:auto;
+      background:#fff;
+      border:1px solid #cbd5e1;
+      border-radius:8px;
+      box-shadow:0 8px 20px rgba(15,40,75,.14);
+      z-index:100;
+    }
+    
+    .material-options.show{
+      display:block;
+    }
+    
+    .material-option{
+      display:block;
+      width:100%;
+      padding:10px;
+      border:0;
+      border-bottom:1px solid #eef2f7;
+      background:#fff;
+      color:#1e293b;
+      text-align:left;
+      font-size:12px;
+      cursor:pointer;
+    }
+    
+    .material-option:hover{
+      background:#eaf2fb;
+      color:#174b83;
+    }
+    
+    .material-option small{
+      display:block;
+      margin-top:3px;
+      color:#64748b;
+      font-size:10px;
+    }
+    
+    .material-no-results{
+      padding:11px;
+      color:#64748b;
+      font-size:12px;
+    }
+    
+    .material-row > select[aria-label="Material o insumo"]{
+      display:none;
+    }
     textarea{resize:vertical;min-height:68px}
     .subhead{font-size:13px;font-weight:750;margin:19px 0 9px;color:#334155}
     .material-head,.material-row{display:grid;grid-template-columns:78px 112px minmax(120px,1fr) 34px;gap:7px;align-items:center}
@@ -855,7 +920,6 @@
     }
 
     const technicians = ["Melany Aguilar","Fernanda Bosquez","Johanna Pilicita","José Toabanda"];
-    const units = ["Unidad","Unidades","g","kg","mg","mL","L","Caja","Paquete","Frasco","Metro"];
     const materials = ["Tubos de ensayo","Vasos de precipitación","Puntas para micropipeta","Guantes","Papel filtro","Probeta","Matraz Erlenmeyer","Reactivo de laboratorio"];
     const state = { deliveries: [], returns: [], calendar: null };
 
@@ -885,34 +949,140 @@
         }
     }
 
+    function resolveMaterialId(item) {
+        return item.materialId ||
+            item.material_id ||
+            materialsCatalog.find(
+                material => material.description === item.material
+            )?.id ||
+            "";
+    }
+
+    
+    function normalizeMaterialText(value) {
+        return String(value || "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .trim();
+    }
+    
+    function scoreMaterial(material, query) {
+        const description = normalizeMaterialText(material.description);
+        const brand = normalizeMaterialText(material.brand);
+        const model = normalizeMaterialText(material.model);
+        const code = normalizeMaterialText(material.uitey_code);
+    
+        const fullText = `${description} ${brand} ${model} ${code}`;
+        const words = query.split(/\s+/).filter(Boolean);
+    
+        if (!words.every(word => fullText.includes(word))) {
+            return -1;
+        }
+    
+        if (description === query) return 100;
+        if (description.startsWith(query)) return 80;
+        if (description.split(/\s+/).some(word => word.startsWith(query))) return 65;
+        if (description.includes(query)) return 50;
+        return 30;
+    }
+    
     function refreshMaterialOptions(containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
     
         const rows = [...container.querySelectorAll(".material-row")];
     
-        const selectedIds = rows
-            .map(row => row.querySelector(
-                'select[aria-label="Material o insumo"]'
-            ).value)
-            .filter(Boolean);
-    
         rows.forEach(row => {
             const select = row.querySelector(
                 'select[aria-label="Material o insumo"]'
             );
     
-            const currentId = select.value;
-            const usedByOthers = selectedIds.filter(id => id !== currentId);
+            const usedByOthers = rows
+                .filter(otherRow => otherRow !== row)
+                .map(otherRow => otherRow.querySelector(
+                    'select[aria-label="Material o insumo"]'
+                ).value)
+                .filter(Boolean);
     
             [...select.options].forEach(option => {
                 if (!option.value) return;
-    
                 option.disabled = usedByOthers.includes(option.value);
             });
         });
     }
-
+    
+    function showMaterialOptions(row, query = "") {
+        const select = row.querySelector(
+            'select[aria-label="Material o insumo"]'
+        );
+        const searchInput = row.querySelector(".material-search-input");
+        const optionsBox = row.querySelector(".material-options");
+    
+        const normalizedQuery = normalizeMaterialText(query);
+    
+        const usedByOthers = [...row.parentElement.querySelectorAll(".material-row")]
+            .filter(otherRow => otherRow !== row)
+            .map(otherRow => otherRow.querySelector(
+                'select[aria-label="Material o insumo"]'
+            ).value)
+            .filter(Boolean);
+    
+        let results = materialsCatalog
+            .filter(material => !usedByOthers.includes(material.id))
+            .map(material => ({
+                material,
+                score: normalizedQuery
+                    ? scoreMaterial(material, normalizedQuery)
+                    : 0
+            }))
+            .filter(item => item.score >= 0);
+    
+        results.sort((a, b) =>
+            b.score - a.score ||
+            a.material.description.localeCompare(b.material.description)
+        );
+    
+        optionsBox.innerHTML = "";
+    
+        if (!results.length) {
+            optionsBox.innerHTML =
+                '<div class="material-no-results">No se encontraron coincidencias.</div>';
+        } else {
+            results.slice(0, 15).forEach(({ material }) => {
+                const option = document.createElement("button");
+                option.type = "button";
+                option.className = "material-option";
+    
+                option.innerHTML = `
+                    <span>${material.description}</span>
+                    <small>
+                        ${material.brand || ""}
+                        ${material.model || ""}
+                        ${material.uitey_code || ""}
+                    </small>
+                `;
+    
+                option.addEventListener("mousedown", event => {
+                    event.preventDefault();
+                });
+    
+                option.addEventListener("click", () => {
+                    select.value = material.id;
+                    searchInput.value = material.description;
+    
+                    select.dispatchEvent(new Event("change"));
+                    optionsBox.classList.remove("show");
+    
+                    refreshMaterialOptions(row.parentElement.id);
+                });
+    
+                optionsBox.appendChild(option);
+            });
+        }
+    
+        optionsBox.classList.add("show");
+    }
     
     function materialRow(containerId) {
         const container = document.getElementById(containerId);
@@ -923,74 +1093,76 @@
             <input type="number" min="1" step="1"
                 placeholder="0" aria-label="Cantidad" required>
     
-            <select aria-label="Unidad" required>
-                <option value="">Unidad</option>
-            </select>
+            <input type="text"
+                aria-label="Unidad"
+                placeholder="Unidad"
+                readonly
+                required>
     
             <select aria-label="Material o insumo" required>
                 <option value="">Seleccionar</option>
             </select>
+    
+            <div class="material-search">
+                <input
+                    type="text"
+                    class="material-search-input"
+                    placeholder="Buscar material..."
+                    autocomplete="off"
+                    aria-label="Buscar material o insumo"
+                    required
+                >
+                <div class="material-options"></div>
+            </div>
     
             <button class="icon-btn remove" type="button"
                 title="Eliminar línea" aria-label="Eliminar línea">−</button>
         `;
     
         const quantityInput = row.querySelector('input[type="number"]');
-        const unitSelect = row.querySelector(
-            'select[aria-label="Unidad"]'
-        );
+        const unitInput = row.querySelector('input[aria-label="Unidad"]');
+    
         const materialSelect = row.querySelector(
             'select[aria-label="Material o insumo"]'
         );
     
-        // Cargar unidades disponibles
-        units.forEach(unit => {
-            const option = document.createElement("option");
-            option.value = unit;
-            option.textContent = unit;
-            unitSelect.appendChild(option);
-        });
+        const searchInput = row.querySelector(".material-search-input");
+        const optionsBox = row.querySelector(".material-options");
     
-        // Cargar materiales desde el catálogo
         populateMaterialSelect(materialSelect);
     
-        // Asignar automáticamente la unidad del material seleccionado
         materialSelect.addEventListener("change", function() {
             const selectedMaterial = materialsCatalog.find(
                 material => material.id === this.value
             );
     
-            if (!selectedMaterial || !selectedMaterial.unit) {
-                unitSelect.value = "";
-            } else {
-                const materialUnit = selectedMaterial.unit;
+            unitInput.value = selectedMaterial?.unit || "";
     
-                let unitOption = [...unitSelect.options].find(
-                    option =>
-                        option.value.toLowerCase() ===
-                        materialUnit.toLowerCase()
-                );
+            searchInput.value = selectedMaterial?.description || "";
+        });
     
-                if (!unitOption) {
-                    unitOption = document.createElement("option");
-                    unitOption.value = materialUnit;
-                    unitOption.textContent = materialUnit;
-                    unitSelect.appendChild(unitOption);
-                }
+        searchInput.addEventListener("input", function() {
+            materialSelect.value = "";
+            unitInput.value = "";
     
-                unitSelect.value = unitOption.value;
-            }
-    
-            // Actualizar las opciones de las demás filas
+            showMaterialOptions(row, this.value);
             refreshMaterialOptions(containerId);
         });
     
-        // En devoluciones se permite dejar la cantidad vacía
+        searchInput.addEventListener("focus", function() {
+            showMaterialOptions(row, this.value);
+        });
+    
+        searchInput.addEventListener("blur", function() {
+            setTimeout(() => {
+                optionsBox.classList.remove("show");
+            }, 150);
+        });
+    
         if (containerId === "returnLines") {
             quantityInput.required = false;
         }
     
-        // Eliminar fila y liberar el material seleccionado
         row.querySelector(".remove").addEventListener("click", () => {
             if (container.children.length > 1) {
                 row.remove();
@@ -1000,9 +1172,9 @@
     
         container.appendChild(row);
     
-        // Actualizar las opciones al crear una nueva fila
         refreshMaterialOptions(containerId);
     }
+
 
     document.querySelectorAll("[data-add]").forEach(btn=>btn.addEventListener("click",()=>materialRow(btn.dataset.add)));
     materialRow("deliveryLines");materialRow("returnLines");
@@ -1056,7 +1228,7 @@
             .querySelectorAll(".material-row")].map(row => {
     
             const quantity = row.querySelector('input[type="number"]');
-            const unit = row.querySelector('select[aria-label="Unidad"]');
+            const unit = row.querySelector('input[aria-label="Unidad"]');
             const materialSelect = row.querySelector('select[aria-label="Material o insumo"]');
     
             const selectedMaterial = materialsCatalog.find(
@@ -1407,14 +1579,17 @@
           const row=box.lastElementChild;
           const inputs=row.querySelectorAll("input,select");
       
-          inputs[1].value=item.unit;
-          inputs[2].value =
-            item.materialId ||
-            item.material_id ||
-            materialsCatalog.find(
-                material => material.description === item.material
-            )?.id ||
-            "";
+          const materialId = resolveMaterialId(item);
+
+          inputs[2].value = materialId;
+          
+          const selectedMaterial = materialsCatalog.find(
+              material => material.id === materialId
+          );
+          
+          inputs[1].value = selectedMaterial?.unit || item.unit || "";
+          
+          refreshMaterialOptions("returnLines");
       
           // Establecer como máximo la cantidad pendiente
           inputs[0].max=pending;
@@ -1701,18 +1876,13 @@
             const inputs = row.querySelectorAll("input, select");
     
             inputs[0].value = item.quantity;
-            inputs[1].value = item.unit;
+            inputs[1].value =
+                materialsCatalog.find(m => m.id === resolveMaterialId(item))?.unit
+                || item.unit
+                || "";
+            
+            inputs[2].value = resolveMaterialId(item);
     
-            // El desplegable almacena el UUID, no la descripción
-            const materialId =
-                item.materialId ||
-                item.material_id ||
-                materialsCatalog.find(
-                    material => material.description === item.material
-                )?.id ||
-                "";
-    
-            inputs[2].value = materialId;
         });
     
         if (!items.length) {
