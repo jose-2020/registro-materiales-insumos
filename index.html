@@ -885,6 +885,34 @@
         }
     }
 
+    function refreshMaterialOptions(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+    
+        const rows = [...container.querySelectorAll(".material-row")];
+    
+        const selectedIds = rows
+            .map(row => row.querySelector(
+                'select[aria-label="Material o insumo"]'
+            ).value)
+            .filter(Boolean);
+    
+        rows.forEach(row => {
+            const select = row.querySelector(
+                'select[aria-label="Material o insumo"]'
+            );
+    
+            const currentId = select.value;
+            const usedByOthers = selectedIds.filter(id => id !== currentId);
+    
+            [...select.options].forEach(option => {
+                if (!option.value) return;
+    
+                option.disabled = usedByOthers.includes(option.value);
+            });
+        });
+    }
+
     
     function materialRow(containerId) {
         const container = document.getElementById(containerId);
@@ -908,8 +936,12 @@
         `;
     
         const quantityInput = row.querySelector('input[type="number"]');
-        const unitSelect = row.querySelector('select[aria-label="Unidad"]');
-        const materialSelect = row.querySelector('select[aria-label="Material o insumo"]');
+        const unitSelect = row.querySelector(
+            'select[aria-label="Unidad"]'
+        );
+        const materialSelect = row.querySelector(
+            'select[aria-label="Material o insumo"]'
+        );
     
         // Cargar unidades disponibles
         units.forEach(unit => {
@@ -919,10 +951,10 @@
             unitSelect.appendChild(option);
         });
     
-        // Cargar materiales desde Supabase
+        // Cargar materiales desde el catálogo
         populateMaterialSelect(materialSelect);
     
-        // Al seleccionar un material, asignar su unidad
+        // Asignar automáticamente la unidad del material seleccionado
         materialSelect.addEventListener("change", function() {
             const selectedMaterial = materialsCatalog.find(
                 material => material.id === this.value
@@ -930,24 +962,27 @@
     
             if (!selectedMaterial || !selectedMaterial.unit) {
                 unitSelect.value = "";
-                return;
+            } else {
+                const materialUnit = selectedMaterial.unit;
+    
+                let unitOption = [...unitSelect.options].find(
+                    option =>
+                        option.value.toLowerCase() ===
+                        materialUnit.toLowerCase()
+                );
+    
+                if (!unitOption) {
+                    unitOption = document.createElement("option");
+                    unitOption.value = materialUnit;
+                    unitOption.textContent = materialUnit;
+                    unitSelect.appendChild(unitOption);
+                }
+    
+                unitSelect.value = unitOption.value;
             }
     
-            const materialUnit = selectedMaterial.unit;
-    
-            // Agregar la unidad si todavía no existe
-            let unitOption = [...unitSelect.options].find(
-                option => option.value.toLowerCase() === materialUnit.toLowerCase()
-            );
-    
-            if (!unitOption) {
-                unitOption = document.createElement("option");
-                unitOption.value = materialUnit;
-                unitOption.textContent = materialUnit;
-                unitSelect.appendChild(unitOption);
-            }
-    
-            unitSelect.value = unitOption.value;
+            // Actualizar las opciones de las demás filas
+            refreshMaterialOptions(containerId);
         });
     
         // En devoluciones se permite dejar la cantidad vacía
@@ -955,13 +990,18 @@
             quantityInput.required = false;
         }
     
+        // Eliminar fila y liberar el material seleccionado
         row.querySelector(".remove").addEventListener("click", () => {
             if (container.children.length > 1) {
                 row.remove();
+                refreshMaterialOptions(containerId);
             }
         });
     
         container.appendChild(row);
+    
+        // Actualizar las opciones al crear una nueva fila
+        refreshMaterialOptions(containerId);
     }
 
     document.querySelectorAll("[data-add]").forEach(btn=>btn.addEventListener("click",()=>materialRow(btn.dataset.add)));
@@ -1368,7 +1408,13 @@
           const inputs=row.querySelectorAll("input,select");
       
           inputs[1].value=item.unit;
-          inputs[2].value=item.material;
+          inputs[2].value =
+            item.materialId ||
+            item.material_id ||
+            materialsCatalog.find(
+                material => material.description === item.material
+            )?.id ||
+            "";
       
           // Establecer como máximo la cantidad pendiente
           inputs[0].max=pending;
@@ -1526,17 +1572,22 @@
       ];
     
       const items=rows.map(row=>{
-        const inputs=row.querySelectorAll("input,select");
-    
-        const unit=inputs[1].value;
-        const material=inputs[2].value;
-        const enteredQuantity=inputs[0].value.trim();
-    
-        return {
-          quantity:enteredQuantity==="" ? 0 : Number(enteredQuantity),
-          unit,
-          material
-        };
+          const inputs=row.querySelectorAll("input,select");
+      
+          const unit=inputs[1].value;
+          const materialId=inputs[2].value;
+          const enteredQuantity=inputs[0].value.trim();
+      
+          const selectedMaterial=materialsCatalog.find(
+              material => material.id === materialId
+          );
+      
+          return {
+              quantity: enteredQuantity === "" ? 0 : Number(enteredQuantity),
+              unit,
+              material: selectedMaterial ? selectedMaterial.description : "",
+              materialId
+          };
       }).filter(item=>item.quantity>0);
     
       if(!items.length){
@@ -1638,25 +1689,37 @@
       const box=document.getElementById(linesId);box.innerHTML="";materialRow(linesId);
     }
     
-    function setMaterialLines(containerId,items){
-      const box=document.getElementById(containerId);
+    function setMaterialLines(containerId, items) {
+        const box = document.getElementById(containerId);
     
-      box.innerHTML="";
+        box.innerHTML = "";
     
-      items.forEach(item=>{
-        materialRow(containerId);
+        items.forEach(item => {
+            materialRow(containerId);
     
-        const row=box.lastElementChild;
-        const inputs=row.querySelectorAll("input,select");
+            const row = box.lastElementChild;
+            const inputs = row.querySelectorAll("input, select");
     
-        inputs[0].value=item.quantity;
-        inputs[1].value=item.unit;
-        inputs[2].value=item.material;
-      });
+            inputs[0].value = item.quantity;
+            inputs[1].value = item.unit;
     
-      if(!items.length){
-        materialRow(containerId);
-      }
+            // El desplegable almacena el UUID, no la descripción
+            const materialId =
+                item.materialId ||
+                item.material_id ||
+                materialsCatalog.find(
+                    material => material.description === item.material
+                )?.id ||
+                "";
+    
+            inputs[2].value = materialId;
+        });
+    
+        if (!items.length) {
+            materialRow(containerId);
+        }
+    
+        refreshMaterialOptions(containerId);
     }
     
     
@@ -1762,7 +1825,13 @@
         inputs[0].value=currentReturn>0 ? currentReturn : "";
     
         inputs[1].value=item.unit;
-        inputs[2].value=item.material;
+        inputs[2].value =
+          item.materialId ||
+          item.material_id ||
+          materialsCatalog.find(
+              material => material.description === item.material
+          )?.id ||
+          "";
     
         // Limitar la cantidad que se puede registrar
         inputs[0].max=available;
