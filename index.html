@@ -1764,8 +1764,13 @@
         }
     
         // Incorporar la entrega guardada al estado de la aplicación
+        const technicianSelect=form.elements["technician"];
+
         const d={
           ...data,
+          technicianName:technicianSelect.options[
+            technicianSelect.selectedIndex
+          ].textContent.trim(),
           id:result.delivery_id,
           items,
           deliveredBy:"",
@@ -2268,7 +2273,7 @@
               item,
               d,
               returnDate:r.date,
-              scheduledBy:d.technician,
+              scheduledBy:d.technicianName||"—",
               deliveryTechnician:d.deliveryConfirmed ? d.deliveredBy : "—",
               receivingTechnician:r.technician,
               status:"returned"
@@ -2282,7 +2287,7 @@
               item,
               d,
               returnDate:"—",
-              scheduledBy:d.technician,
+              scheduledBy:d.technicianName||"—",
               deliveryTechnician:d.deliveryConfirmed ? d.deliveredBy : "—",
               receivingTechnician:"—",
               status:"pending"
@@ -2586,7 +2591,7 @@
         : p;
 
       // Datos de los tres responsables
-      const scheduledBy=delivery?.technician||"—";
+      const scheduledBy=delivery?.technicianName||"—";
 
       const deliveredBy=delivery?.deliveryConfirmed
         ? delivery.deliveredBy
