@@ -1625,7 +1625,7 @@
       },0);
     });
 
-    document.getElementById("deliveryForm").addEventListener("submit",e=>{
+    document.getElementById("deliveryForm").addEventListener("submit", async e=>{
       e.preventDefault();
     
       const form=e.currentTarget;
@@ -1711,26 +1711,94 @@
         return;
       }
     
-      // Nueva entrega
-      const d={
-        ...data,
-        id:crypto.randomUUID(),
-        items,
-        deliveredBy:"",
-        deliveryConfirmed:false,
-        kind:"delivery"
-      };
+      // Validar técnico seleccionado
+      if(!data.technician){
+        alert("Seleccione el técnico responsable de la entrega.");
+        return;
+      }
     
-      state.deliveries.push(d);
+      // Validar que todos los materiales tengan su ID de Supabase
+      if(items.some(x=>!x.materialId)){
+        alert("Uno o más materiales no tienen un identificador válido en Supabase. Verifique la selección.");
+        return;
+      }
     
-      renderCalendarEvents();
-      refreshDeliveryOptions();
-      renderLoans();
+      // Registrar nueva entrega en Supabase
+      const submitButton=form.querySelector('button[type="submit"]');
+      submitButton.disabled=true;
+      submitButton.textContent="Guardando...";
     
-      form.reset();
-      resetFormDefaults(form,"deliveryLines");
+      try{
     
-      alert("Entrega publicada en el calendario de esta demostración.");
+        const {data:result,error}=await supabaseClient.rpc(
+          "register_delivery_with_technician",
+          {
+            p_delivery_data:{
+              student_name:data.student,
+              tutor_name:data.tutor,
+              activity:data.activity,
+              project:data.project,
+              school:data.school,
+              scheduled_date:data.date,
+              scheduled_time:data.time,
+              notes:data.observation
+            },
+    
+            p_items:items.map(x=>({
+              material_id:x.materialId,
+              quantity:x.quantity
+            })),
+    
+            p_booked_by_user_id:data.technician
+          }
+        );
+    
+        if(error){
+          throw error;
+        }
+    
+        if(!result?.success || !result?.delivery_id){
+          throw new Error(
+            result?.message || "Supabase no confirmó el registro de la entrega."
+          );
+        }
+    
+        // Incorporar la entrega guardada al estado de la aplicación
+        const d={
+          ...data,
+          id:result.delivery_id,
+          items,
+          deliveredBy:"",
+          deliveryConfirmed:false,
+          kind:"delivery"
+        };
+    
+        state.deliveries.push(d);
+    
+        renderCalendarEvents();
+        refreshDeliveryOptions();
+        renderLoans();
+    
+        form.reset();
+        resetFormDefaults(form,"deliveryLines");
+    
+        alert("Entrega registrada correctamente en Supabase.");
+    
+      }catch(error){
+    
+        console.error("Error al registrar entrega:",error);
+    
+        alert(
+          "No se pudo registrar la entrega en Supabase:\n"+
+          (error.message || "Error desconocido.")
+        );
+    
+      }finally{
+    
+        submitButton.disabled=false;
+        submitButton.textContent="Publicar entrega";
+    
+      }
     });
 
     document.getElementById("returnForm").addEventListener("submit",e=>{
