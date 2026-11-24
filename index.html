@@ -425,6 +425,28 @@
         color: #b42318;
     }
 
+    .logout-button {
+    background: #ffffff;
+    color: #174b83;
+    border: 1px solid #ffffff;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    }
+    
+    .logout-button:hover {
+        background: #eaf2fb;
+    }
+    
+    @media(max-width:520px) {
+        .logout-button {
+            padding: 8px;
+            font-size: 11px;
+        }
+    }
+
     [hidden] {
       display: none !important;
   }
@@ -469,18 +491,26 @@
       </div>
   </div>
   <div id="appContent" hidden>
+  
   <header class="topbar">
     <div class="header-content">
+  
       <div class="header-title">
         <h1>Registro de Materiales e Insumos</h1>
         <p>Sistema de gestión de entregas, devoluciones y trazabilidad de bodega</p>
       </div>
-
+  
+      <button type="button" id="logoutButton" class="logout-button">
+        Cerrar sesión
+      </button>
+  
       <img src="img/logo-escuela.png"
            alt="Logo de la escuela"
            class="school-logo">
+  
     </div>
   </header>
+
 
   <main class="wrap">
     <nav class="nav" aria-label="Navegación principal">
@@ -755,6 +785,22 @@
     }
     
     checkExistingSession();
+
+    // CERRAR SESIÓN
+    document.getElementById("logoutButton").addEventListener("click", async function() {
+    
+        const { error } = await supabaseClient.auth.signOut();
+    
+        if (error) {
+            alert("No se pudo cerrar la sesión: " + error.message);
+            return;
+        }
+    
+        appContent.hidden = true;
+        loginScreen.hidden = false;
+        loginForm.reset();
+        loginMessage.textContent = "";
+    });
 
     (async function probarConexionSupabase() {
         const { data, error } = await supabaseClient
