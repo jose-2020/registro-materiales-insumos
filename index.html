@@ -800,6 +800,7 @@
         // Primero cargar el catálogo y después mostrar la aplicación
         try {
             await loadMaterialsFromSupabase();
+            await loadDeliveriesFromSupabase();
         } catch (error) {
             console.error("No se pudo cargar el catálogo:", error);
             throw new Error(
@@ -927,6 +928,104 @@
     
         return materialsCatalog;
     }
+
+    
+    async function loadDeliveriesFromSupabase() {
+    
+        // Consultar entregas, materiales activos y técnicos
+        const [
+            { data: deliveries, error: deliveriesError },
+            { data: items, error: itemsError },
+            { data: technicians, error: techniciansError }
+        ] = await Promise.all([
+    
+            supabaseClient
+                .from("deliveries")
+                .select("*")
+                .order("created_at", { ascending: false }),
+    
+            supabaseClient
+                .from("delivery_items")
+                .select("*")
+                .is("removed_at", null),
+    
+            supabaseClient
+                .rpc("get_active_technicians")
+        ]);
+    
+        if (deliveriesError) {
+            console.error("Error cargando entregas:", deliveriesError);
+            throw deliveriesError;
+        }
+    
+        if (itemsError) {
+            console.error("Error cargando materiales de las entregas:", itemsError);
+            throw itemsError;
+        }
+    
+        if (techniciansError) {
+            console.error("Error cargando nombres de técnicos:", techniciansError);
+            throw techniciansError;
+        }
+    
+        // Relacionar UUID del técnico con su nombre completo
+        const technicianNames = new Map(
+            (technicians || []).map(technician => [
+                technician.id,
+                technician.full_name
+            ])
+        );
+    
+        // Reconstruir las entregas para la interfaz
+        state.deliveries = (deliveries || []).map(delivery => {
+    
+            const deliveryItems = (items || [])
+                .filter(item => item.delivery_id === delivery.id)
+                .map(item => ({
+                    quantity: Number(item.quantity),
+                    unit: item.material_unit || "",
+                    material: item.material_description || "",
+                    materialId: item.material_id,
+                    brand: item.material_brand || "",
+                    model: item.material_model || "",
+                    code: item.material_code || ""
+                }));
+    
+            return {
+                id: delivery.id,
+                kind: "delivery",
+    
+                student: delivery.student_name || "",
+                tutor: delivery.tutor_name || "",
+                activity: delivery.activity || "",
+                project: delivery.project || "",
+                school: delivery.school || "",
+    
+                date: delivery.scheduled_date,
+                time: delivery.scheduled_time,
+                observation: delivery.notes || "",
+    
+                // Se conserva el UUID original
+                technician: delivery.booked_by_user_id || "",
+    
+                // Nombre que se muestra en la interfaz
+                technicianName:
+                    technicianNames.get(delivery.booked_by_user_id) || "No disponible",
+    
+                status: delivery.status,
+                deliveryConfirmed: delivery.status === "confirmada",
+    
+                deliveredBy: "",
+    
+                items: deliveryItems
+            };
+        });
+    
+        console.log("Entregas cargadas:", state.deliveries.length);
+    
+        return state.deliveries;
+    }
+
 
     const technicians = ["Melany Aguilar","Fernanda Bosquez","Johanna Pilicita","José Toabanda"];
     const materials = ["Tubos de ensayo","Vasos de precipitación","Puntas para micropipeta","Guantes","Papel filtro","Probeta","Matraz Erlenmeyer","Reactivo de laboratorio"];
