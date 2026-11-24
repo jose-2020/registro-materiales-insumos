@@ -537,6 +537,15 @@
         SUPABASE_URL,
         SUPABASE_KEY
     );
+    // Detectar sesión de recuperación de contraseña
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        console.log("Evento de autenticación:", event);
+    
+        if (event === "PASSWORD_RECOVERY") {
+            console.log("Usuario autorizado para cambiar su contraseña.");
+            alert("Enlace de recuperación reconocido. Preparando cambio de contraseña.");
+        }
+    });
     console.log("Cliente Supabase inicializado:", !!supabaseClient);
     (async function probarConexionSupabase() {
         const { data, error } = await supabaseClient
