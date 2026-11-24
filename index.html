@@ -830,6 +830,13 @@
         }
     
         materialsCatalog = data || [];
+
+        // Actualizar los desplegables que ya existen
+        document.querySelectorAll(
+            '.material-row select[aria-label="Material o insumo"]'
+        ).forEach(select => {
+            populateMaterialSelect(select, select.value);
+        });
     
         console.log("Conexión con Supabase correcta.");
         console.log("Materiales activos cargados:", materialsCatalog.length);
@@ -853,20 +860,104 @@
     document.querySelectorAll('input[type="date"]').forEach(el=>el.value=dateValue);
     document.querySelectorAll('input[type="time"]').forEach(el=>el.value="08:00");
 
-    function materialRow(containerId){
-      const container=document.getElementById(containerId);
-      const row=document.createElement("div");row.className="material-row";
-      row.innerHTML=`<input type="number" min="1" step="1" placeholder="0" aria-label="Cantidad" required>
-        <select aria-label="Unidad" required><option value="">Unidad</option>${units.map(x=>`<option>${x}</option>`).join("")}</select>
-        <select aria-label="Material o insumo" required><option value="">Seleccionar</option>${materials.map(x=>`<option>${x}</option>`).join("")}</select>
-        <button class="icon-btn remove" type="button" title="Eliminar línea" aria-label="Eliminar línea">−</button>`;
-      // En las devoluciones se permite dejar la cantidad vacía
-      if(containerId==="returnLines"){
-        row.querySelector('input[type="number"]').required=false;
-      }
-      row.querySelector(".remove").addEventListener("click",()=>{if(container.children.length>1)row.remove();});
-      container.appendChild(row);
+    
+    function populateMaterialSelect(select, selectedId = "") {
+    
+        select.innerHTML = '<option value="">Seleccionar</option>';
+    
+        materialsCatalog.forEach(material => {
+            const option = document.createElement("option");
+    
+            option.value = material.id;
+            option.textContent = material.description;
+    
+            select.appendChild(option);
+        });
+    
+        if (selectedId) {
+            select.value = selectedId;
+        }
     }
+
+    
+    function materialRow(containerId) {
+        const container = document.getElementById(containerId);
+        const row = document.createElement("div");
+        row.className = "material-row";
+    
+        row.innerHTML = `
+            <input type="number" min="1" step="1"
+                placeholder="0" aria-label="Cantidad" required>
+    
+            <select aria-label="Unidad" required>
+                <option value="">Unidad</option>
+            </select>
+    
+            <select aria-label="Material o insumo" required>
+                <option value="">Seleccionar</option>
+            </select>
+    
+            <button class="icon-btn remove" type="button"
+                title="Eliminar línea" aria-label="Eliminar línea">−</button>
+        `;
+    
+        const quantityInput = row.querySelector('input[type="number"]');
+        const unitSelect = row.querySelector('select[aria-label="Unidad"]');
+        const materialSelect = row.querySelector('select[aria-label="Material o insumo"]');
+    
+        // Cargar unidades disponibles
+        units.forEach(unit => {
+            const option = document.createElement("option");
+            option.value = unit;
+            option.textContent = unit;
+            unitSelect.appendChild(option);
+        });
+    
+        // Cargar materiales desde Supabase
+        populateMaterialSelect(materialSelect);
+    
+        // Al seleccionar un material, asignar su unidad
+        materialSelect.addEventListener("change", function() {
+            const selectedMaterial = materialsCatalog.find(
+                material => material.id === this.value
+            );
+    
+            if (!selectedMaterial || !selectedMaterial.unit) {
+                unitSelect.value = "";
+                return;
+            }
+    
+            const materialUnit = selectedMaterial.unit;
+    
+            // Agregar la unidad si todavía no existe
+            let unitOption = [...unitSelect.options].find(
+                option => option.value.toLowerCase() === materialUnit.toLowerCase()
+            );
+    
+            if (!unitOption) {
+                unitOption = document.createElement("option");
+                unitOption.value = materialUnit;
+                unitOption.textContent = materialUnit;
+                unitSelect.appendChild(unitOption);
+            }
+    
+            unitSelect.value = unitOption.value;
+        });
+    
+        // En devoluciones se permite dejar la cantidad vacía
+        if (containerId === "returnLines") {
+            quantityInput.required = false;
+        }
+    
+        row.querySelector(".remove").addEventListener("click", () => {
+            if (container.children.length > 1) {
+                row.remove();
+            }
+        });
+    
+        container.appendChild(row);
+    }
+
     document.querySelectorAll("[data-add]").forEach(btn=>btn.addEventListener("click",()=>materialRow(btn.dataset.add)));
     materialRow("deliveryLines");materialRow("returnLines");
 
@@ -912,12 +1003,38 @@
       );
     }
     
-    function getLines(containerId){
-      return [...document.getElementById(containerId).querySelectorAll(".material-row")].map(row=>{
-        const inputs=row.querySelectorAll("input,select");
-        return {quantity:Number(inputs[0].value),unit:inputs[1].value,material:inputs[2].value};
-      });
+    
+    function getLines(containerId) {
+    
+        return [...document.getElementById(containerId)
+            .querySelectorAll(".material-row")].map(row => {
+    
+            const quantity = row.querySelector('input[type="number"]');
+            const unit = row.querySelector('select[aria-label="Unidad"]');
+            const materialSelect = row.querySelector('select[aria-label="Material o insumo"]');
+    
+            const selectedMaterial = materialsCatalog.find(
+                material => material.id === materialSelect.value
+            );
+    
+            return {
+                quantity: Number(quantity.value),
+                unit: unit.value,
+    
+                // Conservamos la descripción para el código existente
+                material: selectedMaterial ? selectedMaterial.description : "",
+    
+                // Identificador real de Supabase
+                materialId: selectedMaterial ? selectedMaterial.id : "",
+    
+                // Datos descriptivos del material
+                brand: selectedMaterial ? selectedMaterial.brand : "",
+                model: selectedMaterial ? selectedMaterial.model : "",
+                code: selectedMaterial ? selectedMaterial.uitey_code : ""
+            };
+        });
     }
+
     function formData(form){
       const fd=new FormData(form);return Object.fromEntries(fd.entries());
     }
