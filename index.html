@@ -538,6 +538,20 @@
         SUPABASE_KEY
     );
     console.log("Cliente Supabase inicializado:", !!supabaseClient);
+    (async function probarConexionSupabase() {
+        const { data, error } = await supabaseClient
+            .from("materials")
+            .select("id, description")
+            .limit(5);
+    
+        if (error) {
+            console.error("Error de conexión con Supabase:", error);
+            return;
+        }
+    
+        console.log("Conexión con Supabase correcta.");
+        console.log("Materiales encontrados:", data);
+    })();
     const technicians = ["Melany Aguilar","Fernanda Bosquez","Johanna Pilicita","José Toabanda"];
     const units = ["Unidad","Unidades","g","kg","mg","mL","L","Caja","Paquete","Frasco","Metro"];
     const materials = ["Tubos de ensayo","Vasos de precipitación","Puntas para micropipeta","Guantes","Papel filtro","Probeta","Matraz Erlenmeyer","Reactivo de laboratorio"];
