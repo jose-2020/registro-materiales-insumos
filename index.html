@@ -1589,6 +1589,12 @@
           
           inputs[1].value = selectedMaterial?.unit || item.unit || "";
           
+          // Mostrar el nombre del material en el buscador visible
+          const searchInput = row.querySelector(".material-search-input");
+          
+          searchInput.value =
+              selectedMaterial?.description || item.material || "";
+          
           refreshMaterialOptions("returnLines");
       
           // Establecer como máximo la cantidad pendiente
@@ -2012,14 +2018,29 @@
         // Mostrar la cantidad de esta devolución, si existe
         inputs[0].value=currentReturn>0 ? currentReturn : "";
     
-        inputs[1].value=item.unit;
-        inputs[2].value =
-          item.materialId ||
-          item.material_id ||
-          materialsCatalog.find(
-              material => material.description === item.material
-          )?.id ||
-          "";
+        inputs[1].value = item.unit;
+
+        // Obtener el ID del material
+        const materialId =
+            item.materialId ||
+            item.material_id ||
+            materialsCatalog.find(
+                material => material.description === item.material
+            )?.id ||
+            "";
+        
+        // Seleccionar el material en el campo interno
+        inputs[2].value = materialId;
+        
+        // Mostrar el nombre en el buscador visible
+        const selectedMaterial = materialsCatalog.find(
+            material => material.id === materialId
+        );
+        
+        const searchInput = row.querySelector(".material-search-input");
+        
+        searchInput.value =
+            selectedMaterial?.description || item.material || "";
     
         // Limitar la cantidad que se puede registrar
         inputs[0].max=available;
