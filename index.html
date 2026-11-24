@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Registro de Materiales e Insumos</title>
@@ -524,6 +525,19 @@
   </div>
 
   <script>
+    // ======================================
+    // CONEXIÓN CON SUPABASE
+    // ======================================
+    
+    const SUPABASE_URL = "https://ecfkecsekevryotelqwt.supabase.co";
+    
+    const SUPABASE_KEY = "sb_publishable_EnWPfF6O3ZJQp4VgzUqUAw_pLONhZDC";
+    
+    const supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
+    console.log("Cliente Supabase inicializado:", !!supabaseClient);
     const technicians = ["Melany Aguilar","Fernanda Bosquez","Johanna Pilicita","José Toabanda"];
     const units = ["Unidad","Unidades","g","kg","mg","mL","L","Caja","Paquete","Frasco","Metro"];
     const materials = ["Tubos de ensayo","Vasos de precipitación","Puntas para micropipeta","Guantes","Papel filtro","Probeta","Matraz Erlenmeyer","Reactivo de laboratorio"];
