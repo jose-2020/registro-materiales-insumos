@@ -723,11 +723,21 @@
         }
     
         // Usuario autenticado y activo
+        // Primero cargar el catálogo y después mostrar la aplicación
+        try {
+            await loadMaterialsFromSupabase();
+        } catch (error) {
+            console.error("No se pudo cargar el catálogo:", error);
+            throw new Error(
+                "Tu acceso fue validado, pero no se pudo cargar el catálogo de materiales. Intenta nuevamente."
+            );
+        }
+        
         loginScreen.hidden = true;
         appContent.hidden = false;
-    
+        
         console.log("Acceso autorizado:", profile.full_name, profile.role);
-    
+        
         return profile;
     }
     
@@ -843,10 +853,6 @@
     
         return materialsCatalog;
     }
-    
-    loadMaterialsFromSupabase().catch(error => {
-        console.error("No se pudo cargar el catálogo:", error);
-    });
 
     const technicians = ["Melany Aguilar","Fernanda Bosquez","Johanna Pilicita","José Toabanda"];
     const units = ["Unidad","Unidades","g","kg","mg","mL","L","Caja","Paquete","Frasco","Metro"];
