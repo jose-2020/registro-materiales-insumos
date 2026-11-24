@@ -424,6 +424,10 @@
         font-size: 14px;
         color: #b42318;
     }
+
+    [hidden] {
+      display: none !important;
+  }
   
   </style>
 </head>
@@ -464,6 +468,7 @@
           </form>
       </div>
   </div>
+  <div id="appContent" hidden>
   <header class="topbar">
     <div class="header-content">
       <div class="header-title">
@@ -657,6 +662,100 @@
         }
     });
     console.log("Cliente Supabase inicializado:", !!supabaseClient);
+    
+    // ==========================================
+    // AUTENTICACIÓN Y CONTROL DE ACCESO
+    // ==========================================
+    
+    const loginScreen = document.getElementById("loginScreen");
+    const appContent = document.getElementById("appContent");
+    const loginForm = document.getElementById("loginForm");
+    const loginMessage = document.getElementById("loginMessage");
+    const loginButton = document.getElementById("loginButton");
+    
+    // Mostrar la aplicación después de validar el perfil
+    async function validateUserAccess(user) {
+        const { data: profile, error } = await supabaseClient
+            .from("profiles")
+            .select("id, full_name, role, active")
+            .eq("id", user.id)
+            .maybeSingle();
+    
+        if (error) {
+            console.error("Error consultando el perfil:", error);
+            await supabaseClient.auth.signOut();
+            throw new Error("No se pudo verificar tu perfil. Intenta nuevamente.");
+        }
+    
+        if (!profile || profile.active !== true) {
+            await supabaseClient.auth.signOut();
+            throw new Error("Tu usuario no está autorizado o está desactivado.");
+        }
+    
+        // Usuario autenticado y activo
+        loginScreen.hidden = true;
+        appContent.hidden = false;
+    
+        console.log("Acceso autorizado:", profile.full_name, profile.role);
+    
+        return profile;
+    }
+    
+    // Inicio de sesión
+    loginForm.addEventListener("submit", async function(event) {
+        event.preventDefault();
+    
+        loginMessage.textContent = "";
+        loginButton.disabled = true;
+        loginButton.textContent = "Verificando...";
+    
+        const email = document.getElementById("loginEmail").value.trim();
+        const password = document.getElementById("loginPassword").value;
+    
+        try {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+            });
+    
+            if (error) {
+                throw new Error("Correo o contraseña incorrectos.");
+            }
+    
+            await validateUserAccess(data.user);
+    
+        } catch (error) {
+            console.error("Error de acceso:", error);
+            loginMessage.textContent = error.message;
+            document.getElementById("loginPassword").value = "";
+    
+        } finally {
+            loginButton.disabled = false;
+            loginButton.textContent = "Iniciar sesión";
+        }
+    });
+    
+    // Recuperar una sesión existente al abrir la página
+    async function checkExistingSession() {
+        try {
+            const { data, error } = await supabaseClient.auth.getSession();
+    
+            if (error) throw error;
+    
+            if (data.session) {
+                await validateUserAccess(data.session.user);
+            }
+    
+        } catch (error) {
+            console.error("Error verificando sesión:", error);
+            loginScreen.hidden = false;
+            appContent.hidden = true;
+            loginMessage.textContent = error.message;
+        }
+    }
+    
+    checkExistingSession();
+
     (async function probarConexionSupabase() {
         const { data, error } = await supabaseClient
             .from("materials")
@@ -2217,5 +2316,6 @@
       }else{document.getElementById("calendar").innerHTML='<p class="empty">No se pudo cargar el calendario. Revise su conexión a internet.</p>';}
     });
   </script>
+ </div>
 </body>
 </html>
