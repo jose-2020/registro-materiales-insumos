@@ -802,20 +802,45 @@
         loginMessage.textContent = "";
     });
 
-    (async function probarConexionSupabase() {
+    
+    let materialsCatalog = [];
+    
+    async function loadMaterialsFromSupabase() {
+    
         const { data, error } = await supabaseClient
             .from("materials")
-            .select("id, description")
-            .limit(5);
+            .select(`
+                id,
+                item_type,
+                description,
+                brand,
+                model,
+                uitey_code,
+                location,
+                unit,
+                current_stock,
+                active
+            `)
+            .eq("active", true)
+            .order("description", { ascending: true });
     
         if (error) {
-            console.error("Error de conexión con Supabase:", error);
-            return;
+            console.error("Error cargando materiales:", error);
+            throw error;
         }
     
+        materialsCatalog = data || [];
+    
         console.log("Conexión con Supabase correcta.");
-        console.log("Materiales encontrados:", data);
-    })();
+        console.log("Materiales activos cargados:", materialsCatalog.length);
+    
+        return materialsCatalog;
+    }
+    
+    loadMaterialsFromSupabase().catch(error => {
+        console.error("No se pudo cargar el catálogo:", error);
+    });
+
     const technicians = ["Melany Aguilar","Fernanda Bosquez","Johanna Pilicita","José Toabanda"];
     const units = ["Unidad","Unidades","g","kg","mg","mL","L","Caja","Paquete","Frasco","Metro"];
     const materials = ["Tubos de ensayo","Vasos de precipitación","Puntas para micropipeta","Guantes","Papel filtro","Probeta","Matraz Erlenmeyer","Reactivo de laboratorio"];
