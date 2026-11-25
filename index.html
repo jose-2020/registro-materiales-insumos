@@ -2592,16 +2592,43 @@
       }
     
       if(kind==="return"){
-        const r=state.returns.find(x=>x.id===id);
-        if(!r) return;
-    
-        if(!confirm(`¿Eliminar la devolución de ${r.student}? Se actualizará el saldo pendiente.`)){
-          return;
+        const confirmed = confirm(
+          "¿Estás seguro de que deseas eliminar esta devolución? El registro se conservará en el historial de auditoría."
+        );
+      
+        if(!confirmed) return;
+      
+        try {
+          const { data, error } = await supabaseClient.rpc(
+            "delete_return",
+            {
+              p_return_id: id,
+              p_deletion_reason: "Eliminación desde el calendario"
+            }
+          );
+      
+          if(error) throw error;
+      
+          if(data && data.success === false){
+            throw new Error(data.message || "No se pudo eliminar la devolución.");
+          }
+      
+          await loadReturnsFromSupabase();
+      
+          modal.classList.remove("show");
+          currentCalendarRecord = null;
+      
+          renderCalendarEvents();
+          renderLoans();
+          refreshDeliveryOptions();
+      
+          alert("La devolución se eliminó correctamente.");
+      
+        } catch(error) {
+          console.error("Error al eliminar devolución:", error);
+          alert("No se pudo eliminar la devolución en Supabase: " + error.message);
         }
-    
-        // Mantener el comportamiento actual hasta conectar
-        // la función de eliminación de devoluciones.
-        alert("La eliminación de devoluciones todavía no está conectada a Supabase.");
+      
         return;
       }
     
