@@ -1452,18 +1452,23 @@
     document.querySelectorAll("[data-add]").forEach(btn=>btn.addEventListener("click",()=>materialRow(btn.dataset.add)));
     materialRow("deliveryLines");materialRow("returnLines");
 
-    function getPendingQuantity(delivery,item){
-      const delivered=delivery.items
-        .filter(x=>x.material===item.material&&x.unit===item.unit)
-        .reduce((s,x)=>s+x.quantity,0);
+    function getPendingQuantity(delivery, item) {
+
+        const deliveryItemId = item.id || item.deliveryItemId;
     
-      const returned=state.returns
-        .filter(r=>r.deliveryId===delivery.id)
-        .flatMap(r=>r.items)
-        .filter(x=>x.material===item.material&&x.unit===item.unit)
-        .reduce((s,x)=>s+x.quantity,0);
+        if (!deliveryItemId) {
+            return 0;
+        }
     
-      return Math.max(0,delivered-returned);
+        const delivered = Number(item.quantity) || 0;
+    
+        const returned = state.returns
+            .filter(r => r.deliveryId === delivery.id)
+            .flatMap(r => r.items)
+            .filter(x => x.deliveryItemId === deliveryItemId)
+            .reduce((sum, x) => sum + Number(x.quantity || 0), 0);
+    
+        return Math.max(0, delivered - returned);
     }
     
     
@@ -1471,22 +1476,7 @@
       return delivery.items.some(item=>
         getPendingQuantity(delivery,item)>0
       );
-    }
-
-    function getPendingQuantity(delivery,item){
-      const delivered=delivery.items
-        .filter(x=>x.material===item.material&&x.unit===item.unit)
-        .reduce((s,x)=>s+x.quantity,0);
-    
-      const returned=state.returns
-        .filter(r=>r.deliveryId===delivery.id)
-        .flatMap(r=>r.items)
-        .filter(x=>x.material===item.material&&x.unit===item.unit)
-        .reduce((s,x)=>s+x.quantity,0);
-    
-      return Math.max(0,delivered-returned);
-    }
-    
+    }    
     
     function hasPendingMaterials(delivery){
       return delivery.items.some(item=>
@@ -1854,6 +1844,7 @@
           materialRow("returnLines");
       
           const row=box.lastElementChild;
+          row.dataset.deliveryItemId = item.id;
           const inputs=row.querySelectorAll("input,select");
       
           const materialId = resolveMaterialId(item);
@@ -2074,145 +2065,193 @@
       }
     });
 
-    document.getElementById("returnForm").addEventListener("submit",e=>{
-      e.preventDefault();
     
-      const form=e.currentTarget;
-      const data=formData(form);
-      data.school=getSchoolValue(form);
+    document.getElementById("returnForm").addEventListener("submit", async e => {
+        e.preventDefault();
     
-      const delivery=state.deliveries.find(d=>d.id===data.deliveryId);
+        const form = e.currentTarget;
+        const data = formData(form);
+        data.school = getSchoolValue(form);
     
-      if(!delivery){
-        alert("Seleccione una entrega relacionada.");
-        return;
-      }
+        const delivery = state.deliveries.find(
+            d => d.id === data.deliveryId
+        );
     
-      if(data.date<delivery.date){
-        alert("La fecha de devolución no puede ser anterior a la fecha de entrega.");
-        return;
-      }
-    
-      if(data.date===delivery.date && data.time<delivery.time){
-        alert("La hora de devolución no puede ser anterior a la hora de entrega.");
-        return;
-      }
-    
-      const rows=[
-        ...document.getElementById("returnLines").querySelectorAll(".material-row")
-      ];
-    
-      const items=rows.map(row=>{
-          const inputs=row.querySelectorAll("input,select");
-      
-          const unit=inputs[1].value;
-          const materialId=inputs[2].value;
-          const enteredQuantity=inputs[0].value.trim();
-      
-          const selectedMaterial=materialsCatalog.find(
-              material => material.id === materialId
-          );
-      
-          return {
-              quantity: enteredQuantity === "" ? 0 : Number(enteredQuantity),
-              unit,
-              material: selectedMaterial ? selectedMaterial.description : "",
-              materialId
-          };
-      }).filter(item=>item.quantity>0);
-    
-      if(!items.length){
-        alert("Ingrese una cantidad mayor que cero para al menos un material.");
-        return;
-      }
-    
-      if(items.some(x=>
-        !Number.isInteger(x.quantity) ||
-        x.quantity<1 ||
-        !x.unit ||
-        !x.material
-      )){
-        alert("Ingrese cantidades enteras mayores que cero y complete los materiales.");
-        return;
-      }
-    
-      // Identificar si estamos editando una devolución
-      const oldReturn=editingRecord?.kind==="return"
-        ? state.returns.find(r=>r.id===editingRecord.id)
-        : null;
-    
-      if(editingRecord?.kind==="return" && !oldReturn){
-        alert("No se encontró la devolución que desea editar.");
-        return;
-      }
-    
-      // Verificar las cantidades disponibles.
-      // Si editamos, se devuelve temporalmente al saldo la cantidad
-      // que ya estaba registrada en esa misma devolución.
-      for(const item of items){
-    
-        let available=getPendingQuantity(delivery,item);
-    
-        if(oldReturn && oldReturn.deliveryId===delivery.id){
-          available+=oldReturn.items
-            .filter(x=>
-              x.material===item.material &&
-              x.unit===item.unit
-            )
-            .reduce((sum,x)=>sum+x.quantity,0);
+        if (!delivery) {
+            alert("Seleccione una entrega relacionada.");
+            return;
         }
     
-        if(item.quantity>available){
-          alert(
-            `La devolución de ${item.material} supera el saldo pendiente (${available}).`
-          );
-          return;
+        if (!data.technician) {
+            alert("Seleccione el técnico que recibió los materiales.");
+            return;
         }
-      }
     
-      if(oldReturn){
+        if (data.date < delivery.date) {
+            alert("La fecha de devolución no puede ser anterior a la fecha de entrega.");
+            return;
+        }
     
-        // Actualizar la devolución existente
-        Object.assign(oldReturn,data,{
-          items,
-          kind:"return"
-        });
+        if (data.date === delivery.date && data.time < delivery.time) {
+            alert("La hora de devolución no puede ser anterior a la hora de entrega.");
+            return;
+        }
     
-        editingRecord=null;
+        // Identificar si estamos editando
+        const oldReturn = editingRecord?.kind === "return"
+            ? state.returns.find(r => r.id === editingRecord.id)
+            : null;
     
-        renderCalendarEvents();
-        renderLoans();
-        refreshDeliveryOptions();
+        if (editingRecord?.kind === "return" && !oldReturn) {
+            alert("No se encontró la devolución que desea editar.");
+            return;
+        }
     
-        form.reset();
-        resetFormDefaults(form,"returnLines");
+        // Obtener las líneas con sus UUID originales
+        const rows = [
+            ...document.querySelectorAll("#returnLines .material-row")
+        ];
     
-        form.querySelector('button[type="submit"]').textContent="Publicar devolución";
+        const items = rows.map(row => {
+            const quantityInput = row.querySelector('input[type="number"]');
+            const unitInput = row.querySelector('input[aria-label="Unidad"]');
+            const materialSelect = row.querySelector(
+                'select[aria-label="Material o insumo"]'
+            );
     
-        alert("La devolución se actualizó correctamente.");
+            const selectedMaterial = materialsCatalog.find(
+                material => material.id === materialSelect.value
+            );
     
-        return;
-      }
+            const quantityText = quantityInput.value.trim();
     
-      // Registrar una nueva devolución
-      const r={
-        ...data,
-        id:crypto.randomUUID(),
-        items,
-        kind:"return"
-      };
+            return {
+                deliveryItemId: row.dataset.deliveryItemId || "",
+                quantity: quantityText === "" ? 0 : Number(quantityText),
+                unit: unitInput.value,
+                material: selectedMaterial?.description || "",
+                materialId: selectedMaterial?.id || ""
+            };
+        }).filter(item => item.quantity > 0);
     
-      state.returns.push(r);
+        if (!items.length) {
+            alert("Ingrese una cantidad mayor que cero para al menos un material.");
+            return;
+        }
     
-      renderCalendarEvents();
-      renderLoans();
-      refreshDeliveryOptions();
+        if (items.some(item =>
+            !item.deliveryItemId ||
+            !Number.isInteger(item.quantity) ||
+            item.quantity < 1 ||
+            !item.materialId ||
+            !item.unit
+        )) {
+            alert(
+                "Hay materiales sin identificador de entrega o cantidades inválidas. Vuelva a seleccionar los materiales."
+            );
+            return;
+        }
     
-      form.reset();
-      resetFormDefaults(form,"returnLines");
+        // No permitir repetir una misma línea de entrega
+        const deliveryItemIds = items.map(item => item.deliveryItemId);
     
-      alert("Devolución publicada en el calendario de esta demostración.");
+        if (new Set(deliveryItemIds).size !== deliveryItemIds.length) {
+            alert("No se puede repetir un mismo material en la devolución.");
+            return;
+        }
+    
+        const submitButton = form.querySelector('button[type="submit"]');
+        const isEditing = Boolean(oldReturn);
+        const returnId = oldReturn?.id;
+    
+        submitButton.disabled = true;
+        submitButton.textContent = "Guardando...";
+    
+        try {
+    
+            const rpcName = isEditing
+                ? "update_return"
+                : "register_return";
+    
+            const rpcParams = isEditing
+                ? {
+                    p_return_id: returnId,
+                    p_received_date: data.date,
+                    p_received_time: data.time,
+                    p_notes: data.observation || "",
+                    p_items: items.map(item => ({
+                        delivery_item_id: item.deliveryItemId,
+                        quantity: item.quantity
+                    })),
+                    p_received_by_user_id: data.technician
+                }
+                : {
+                    p_delivery_id: data.deliveryId,
+                    p_received_date: data.date,
+                    p_received_time: data.time,
+                    p_notes: data.observation || "",
+                    p_items: items.map(item => ({
+                        delivery_item_id: item.deliveryItemId,
+                        quantity: item.quantity
+                    })),
+                    p_received_by_user_id: data.technician
+                };
+    
+            const { data: result, error } =
+                await supabaseClient.rpc(rpcName, rpcParams);
+    
+            if (error) throw error;
+    
+            if (!result?.success) {
+                throw new Error(
+                    result?.message || "Supabase no confirmó la devolución."
+                );
+            }
+    
+            // Volver a consultar los datos reales de Supabase
+            await loadDeliveriesFromSupabase();
+            await loadReturnsFromSupabase();
+    
+            // Actualizar las vistas
+            renderCalendarEvents();
+            renderLoans();
+            refreshDeliveryOptions();
+    
+            editingRecord = null;
+    
+            form.reset();
+            resetFormDefaults(form, "returnLines");
+    
+            submitButton.textContent = "Publicar devolución";
+    
+            alert(
+                isEditing
+                    ? "Devolución actualizada correctamente en Supabase."
+                    : "Devolución registrada correctamente en Supabase."
+            );
+    
+        } catch (error) {
+    
+            console.error("Error al guardar devolución:", error);
+    
+            alert(
+                "No se pudo guardar la devolución en Supabase:\n" +
+                (error.message || "Error desconocido.")
+            );
+    
+        } finally {
+    
+            submitButton.disabled = false;
+    
+            if (editingRecord?.kind !== "return") {
+                submitButton.textContent = "Publicar devolución";
+            } else {
+                submitButton.textContent = "Guardar cambios";
+            }
+    
+        }
     });
+
 
     function resetFormDefaults(form,linesId){
       form.querySelectorAll('input[type="date"]').forEach(el=>el.value=dateValue);
@@ -2270,10 +2309,13 @@
     function openDeliveryForEditing(d){
       const form=document.getElementById("deliveryForm");
     
-      ["student","tutor","activity","project","technician","date","time","observation"]
-        .forEach(key=>{
-          form.elements[key].value=d[key]||"";
-        });
+      ["student","tutor","activity","project","date","time","observation"]
+          .forEach(key=>{
+              form.elements[key].value=r[key]||"";
+          });
+      
+      // Seleccionar el técnico mediante su UUID
+      form.elements["technician"].value = r.technicianId || "";
     
       setSchoolValue(form,d.school||"");
       setMaterialLines("deliveryLines",d.items);
@@ -2327,77 +2369,60 @@
     
       setSchoolValue(form,r.school||"");
     
-      // Mostrar todos los materiales de la entrega
-      const box=document.getElementById("returnLines");
-      box.innerHTML="";
-    
-      // Evitar mostrar materiales duplicados
-      const uniqueMaterials=[];
-    
-      delivery.items.forEach(item=>{
-        const exists=uniqueMaterials.some(x=>
-          x.material===item.material && x.unit===item.unit
-        );
-    
-        if(!exists){
-          uniqueMaterials.push(item);
-        }
+      
+      // Mostrar cada línea original de la entrega
+      const box = document.getElementById("returnLines");
+      box.innerHTML = "";
+      
+      delivery.items.forEach(item => {
+      
+          const currentReturnItem = r.items.find(
+              x => x.deliveryItemId === item.id
+          );
+      
+          const currentQuantity = currentReturnItem?.quantity || 0;
+      
+          const pending = getPendingQuantity(delivery, item);
+          const available = pending + currentQuantity;
+      
+          materialRow("returnLines");
+      
+          const row = box.lastElementChild;
+      
+          // Conservar el UUID de la línea de entrega
+          row.dataset.deliveryItemId = item.id;
+      
+          const inputs = row.querySelectorAll("input,select");
+      
+          // Cantidad devuelta en este registro
+          inputs[0].value = currentQuantity > 0
+              ? currentQuantity
+              : "";
+      
+          inputs[1].value = item.unit || "";
+      
+          const materialId = item.materialId || "";
+      
+          inputs[2].value = materialId;
+      
+          const selectedMaterial = materialsCatalog.find(
+              material => material.id === materialId
+          );
+      
+          const searchInput = row.querySelector(".material-search-input");
+      
+          searchInput.value =
+              selectedMaterial?.description || item.material || "";
+      
+          inputs[0].max = available;
+      
+          inputs[0].placeholder = available > 0
+              ? `Máx. ${available}`
+              : "Sin saldo";
       });
-    
-      uniqueMaterials.forEach(item=>{
-    
-        // Cantidad que sigue pendiente de devolución
-        const pending=getPendingQuantity(delivery,item);
-    
-        // Cantidad que ya estaba registrada en esta devolución
-        const currentReturn=r.items
-          .filter(x=>
-            x.material===item.material &&
-            x.unit===item.unit
-          )
-          .reduce((sum,x)=>sum+x.quantity,0);
-    
-        // Saldo disponible incluyendo lo que estamos editando
-        const available=pending+currentReturn;
-    
-        materialRow("returnLines");
-    
-        const row=box.lastElementChild;
-        const inputs=row.querySelectorAll("input,select");
-    
-        // Mostrar la cantidad de esta devolución, si existe
-        inputs[0].value=currentReturn>0 ? currentReturn : "";
-    
-        inputs[1].value = item.unit;
+      
+      refreshMaterialOptions("returnLines");
 
-        // Obtener el ID del material
-        const materialId =
-            item.materialId ||
-            item.material_id ||
-            materialsCatalog.find(
-                material => material.description === item.material
-            )?.id ||
-            "";
-        
-        // Seleccionar el material en el campo interno
-        inputs[2].value = materialId;
-        
-        // Mostrar el nombre en el buscador visible
-        const selectedMaterial = materialsCatalog.find(
-            material => material.id === materialId
-        );
-        
-        const searchInput = row.querySelector(".material-search-input");
-        
-        searchInput.value =
-            selectedMaterial?.description || item.material || "";
-    
-        // Limitar la cantidad que se puede registrar
-        inputs[0].max=available;
-        inputs[0].placeholder=available>0
-          ? `Máx. ${available}`
-          : "Sin saldo";
-      });
     
       // Conservar la fecha mínima de la entrega
       form.elements["date"].min=delivery.date;
