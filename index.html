@@ -1902,67 +1902,127 @@
         return;
       }
     
+      
       // Si estamos editando una entrega existente
-      if(editingRecord?.kind==="delivery"){
-    
-        const existing=state.deliveries.find(d=>
-          d.id===editingRecord.id
+      if (editingRecord?.kind === "delivery") {
+
+        const existing = state.deliveries.find(
+          d => d.id === editingRecord.id
         );
-    
-        if(!existing){
+
+        if (!existing) {
           alert("No se encontró la entrega que desea editar.");
           return;
         }
-    
-        // No permitir reducir cantidades por debajo de lo ya devuelto
-        for(const r of state.returns.filter(r=>r.deliveryId===existing.id)){
-          for(const returnedItem of r.items){
-    
-            const deliveredQuantity=items
-              .filter(x=>
-                x.material===returnedItem.material &&
-                x.unit===returnedItem.unit
-              )
-              .reduce((sum,x)=>sum+x.quantity,0);
-    
-            const totalReturned=state.returns
-              .filter(x=>x.deliveryId===existing.id)
-              .flatMap(x=>x.items)
-              .filter(x=>
-                x.material===returnedItem.material &&
-                x.unit===returnedItem.unit
-              )
-              .reduce((sum,x)=>sum+x.quantity,0);
-    
-            if(deliveredQuantity<totalReturned){
-              alert(
-                `No se puede reducir la cantidad de ${returnedItem.material}. Ya se han devuelto ${totalReturned} unidades.`
-              );
-              return;
-            }
-          }
+
+        // Validar que todos los materiales tengan UUID de Supabase
+        if (items.some(item => !item.materialId)) {
+          alert(
+            "Uno o más materiales no tienen un identificador válido en Supabase."
+          );
+          return;
         }
-    
-        Object.assign(existing,data,{
-          items,
-          kind:"delivery"
-        });
-    
-        editingRecord=null;
-    
-        renderCalendarEvents();
-        refreshDeliveryOptions();
-        renderLoans();
-    
-        form.reset();
-        resetFormDefaults(form,"deliveryLines");
-    
-        form.querySelector('button[type="submit"]').textContent="Publicar entrega";
-    
-        alert("La entrega se actualizó correctamente.");
-    
+
+        // Por ahora, el RPC actual no modifica el técnico que agendó.
+        // Evitamos que el cambio se pierda silenciosamente.
+        if (data.technician !== existing.technician) {
+          alert(
+            "El cambio de técnico que agendó la entrega todavía requiere una actualización en Supabase. Por ahora, conserve el técnico original."
+          );
+          return;
+        }
+
+        const submitButton = form.querySelector(
+          'button[type="submit"]'
+        );
+
+        submitButton.disabled = true;
+        submitButton.textContent = "Guardando...";
+
+        try {
+
+          // Actualizar la entrega directamente en Supabase
+          const { data: result, error } = await supabaseClient.rpc(
+            "update_delivery",
+            {
+              p_delivery_id: existing.id,
+
+              p_delivery_data: {
+                student_name: data.student,
+                tutor_name: data.tutor,
+                activity: data.activity,
+                project: data.project,
+                school: data.school,
+                scheduled_date: data.date,
+                scheduled_time: data.time,
+                notes: data.observation || ""
+              },
+
+              p_items: items.map(item => ({
+                material_id: item.materialId,
+                quantity: item.quantity
+              }))
+            }
+          );
+
+          if (error) {
+            throw error;
+          }
+
+          if (!result?.success) {
+            throw new Error(
+              result?.message ||
+              "Supabase no confirmó la actualización de la entrega."
+            );
+          }
+
+          // Recuperar nuevamente los datos reales de Supabase
+          await loadDeliveriesFromSupabase();
+          await loadReturnsFromSupabase();
+
+          // Actualizar las vistas
+          renderCalendarEvents();
+          renderLoans();
+          refreshDeliveryOptions();
+
+          editingRecord = null;
+
+          form.reset();
+          resetFormDefaults(form, "deliveryLines");
+
+          submitButton.textContent = "Publicar entrega";
+
+          alert(
+            "La entrega se actualizó correctamente en Supabase."
+          );
+
+        } catch (error) {
+
+          console.error(
+            "Error al actualizar entrega:",
+            error
+          );
+
+          alert(
+            "No se pudo actualizar la entrega en Supabase:\n" +
+            (error.message || "Error desconocido.")
+          );
+
+        } finally {
+
+          submitButton.disabled = false;
+
+          if (editingRecord?.kind === "delivery") {
+            submitButton.textContent = "Guardar cambios";
+          } else {
+            submitButton.textContent = "Publicar entrega";
+          }
+
+        }
+
         return;
       }
+
     
       // Validar técnico seleccionado
       if(!data.technician){
