@@ -802,6 +802,10 @@
             await loadMaterialsFromSupabase();
             await loadTechniciansFromSupabase();
             await loadDeliveriesFromSupabase();
+
+            renderCalendarEvents();
+            renderLoans();
+          
         } catch (error) {
             console.error("No se pudo cargar el catálogo:", error);
             throw new Error(
