@@ -800,6 +800,7 @@
         // Primero cargar el catálogo y después mostrar la aplicación
         try {
             await loadMaterialsFromSupabase();
+            await loadTechniciansFromSupabase();
             await loadDeliveriesFromSupabase();
         } catch (error) {
             console.error("No se pudo cargar el catálogo:", error);
@@ -929,6 +930,53 @@
         return materialsCatalog;
     }
 
+    async function loadTechniciansFromSupabase(){
+
+      const { data, error } = await supabaseClient.rpc(
+        "get_active_technicians"
+      );
+    
+      if(error){
+        console.error("Error al cargar técnicos:", error);
+        throw error;
+      }
+    
+      technicians = (data || []).map(technician => ({
+        id: technician.id,
+        name: technician.full_name
+      }));
+    
+      // Llenar el selector de quien agenda la entrega
+      const deliverySelect =
+        document.querySelector('#deliveryForm select[name="technician"]');
+    
+      // Llenar el selector de quien recibe la devolución
+      const returnSelect =
+        document.querySelector('#returnForm select[name="technician"]');
+    
+      [deliverySelect, returnSelect].forEach(select => {
+    
+        if(!select) return;
+    
+        select.innerHTML =
+          '<option value="">Seleccionar técnico/a</option>';
+    
+        technicians.forEach(technician => {
+    
+          const option = document.createElement("option");
+    
+          option.value = technician.id;
+          option.textContent = technician.name;
+    
+          select.appendChild(option);
+    
+        });
+    
+      });
+    
+      console.log("Técnicos cargados desde Supabase:", technicians.length);
+    }
+
     
     async function loadDeliveriesFromSupabase() {
     
@@ -1027,7 +1075,7 @@
     }
 
 
-    const technicians = ["Melany Aguilar","Fernanda Bosquez","Johanna Pilicita","José Toabanda"];
+    let technicians = [];
     const materials = ["Tubos de ensayo","Vasos de precipitación","Puntas para micropipeta","Guantes","Papel filtro","Probeta","Matraz Erlenmeyer","Reactivo de laboratorio"];
     const state = { deliveries: [], returns: [], calendar: null };
 
@@ -2730,10 +2778,10 @@
             <div class="delivery-confirmation-controls">
               <select id="deliveredBySelect">
                 <option value="">Seleccionar técnico/a</option>
-                ${technicians.map(name=>`
-                  <option value="${escapeHtml(name)}"
-                    ${p.deliveredBy===name?"selected":""}>
-                    ${escapeHtml(name)}
+                ${technicians.map(technician=>`
+                  <option value="${technician.id}"
+                    ${p.deliveredByUserId===technician.id?"selected":""}>
+                    ${escapeHtml(technician.name)}
                   </option>
                 `).join("")}
               </select>
