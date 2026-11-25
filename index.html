@@ -2024,23 +2024,44 @@
         try {
 
 
+          
           const excludeDeliveryId = editingRecord.id;
-
+          
           for (const item of items) {
               const available = getAvailableStock(
                   item.materialId,
                   excludeDeliveryId
               );
           
-              if (Number(item.quantity) > available) {
+              let quantityToValidate = Number(item.quantity);
+          
+              // En una entrega confirmada, el stock ya fue descontado.
+              // Solo validar el aumento respecto a la cantidad anterior.
+              if (existing.status === "confirmada") {
+                  const previousItem = existing.items.find(
+                      oldItem => oldItem.materialId === item.materialId
+                  );
+          
+                  const previousQuantity = Number(
+                      previousItem?.quantity || 0
+                  );
+          
+                  quantityToValidate = Math.max(
+                      0,
+                      Number(item.quantity) - previousQuantity
+                  );
+              }
+          
+              if (quantityToValidate > available) {
                   alert(
-                      `Stock insuficiente para "${item.description || item.material}".\n` +
-                      `Disponible: ${available}.\n` +
-                      `Solicitado: ${item.quantity}.`
+                      `Stock insuficiente para "${item.material}".\n` +
+                      `Disponible para aumentar: ${available}.\n` +
+                      `Cantidad adicional solicitada: ${quantityToValidate}.`
                   );
                   return;
               }
           }
+
 
           // Actualizar la entrega directamente en Supabase
           const { data: result, error } = await supabaseClient.rpc(
