@@ -1410,11 +1410,16 @@
             unitInput.value = selectedMaterial?.unit || "";
             searchInput.value = selectedMaterial?.description || "";
         
-            updateDeliveryQuantityLimit(row);
+            // El límite de stock solo corresponde al formulario de entregas.
+            if (containerId === "deliveryLines") {
+                updateDeliveryQuantityLimit(row);
+            }
         });
-
+        
         quantityInput.addEventListener("input", function() {
-            updateDeliveryQuantityLimit(row);
+            if (containerId === "deliveryLines") {
+                updateDeliveryQuantityLimit(row);
+            }
         });
     
         searchInput.addEventListener("input", function() {
@@ -3270,8 +3275,9 @@
         }
     
         // Recargar los datos reales desde Supabase
+        await loadMaterialsFromSupabase();
         await loadDeliveriesFromSupabase();
-    
+        
         renderCalendarEvents();
         renderLoans();
         refreshDeliveryOptions();
