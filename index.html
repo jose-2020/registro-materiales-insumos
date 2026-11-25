@@ -2301,25 +2301,35 @@
     
     
     function openDeliveryForEditing(d){
-      const form=document.getElementById("deliveryForm");
+        const form = document.getElementById("deliveryForm");
     
-      ["student","tutor","activity","project","date","time","observation"]
-          .forEach(key=>{
-              form.elements[key].value=r[key]||"";
-          });
-      
-      // Seleccionar el técnico mediante su UUID
-      form.elements["technician"].value = r.technicianId || "";
+        // Cargar los datos de la entrega
+        [
+            "student",
+            "tutor",
+            "activity",
+            "project",
+            "date",
+            "time",
+            "observation"
+        ].forEach(key => {
+            form.elements[key].value = d[key] || "";
+        });
     
-      setSchoolValue(form,d.school||"");
-      setMaterialLines("deliveryLines",d.items);
+        // Seleccionar el técnico que agendó la entrega
+        form.elements["technician"].value = d.technician || "";
     
-      editingRecord={
-        kind:"delivery",
-        id:d.id
-      };
+        // Cargar la escuela y los materiales
+        setSchoolValue(form, d.school || "");
+        setMaterialLines("deliveryLines", d.items);
     
-      form.querySelector('button[type="submit"]').textContent="Guardar cambios";
+        editingRecord = {
+            kind: "delivery",
+            id: d.id
+        };
+    
+        form.querySelector('button[type="submit"]').textContent =
+            "Guardar cambios";
     }
     
     
