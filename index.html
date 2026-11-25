@@ -1552,6 +1552,14 @@
         }
     }
 
+    function refreshDeliveryQuantityLimits() {
+        document.querySelectorAll(
+            "#deliveryLines .material-row"
+        ).forEach(row => {
+            updateDeliveryQuantityLimit(row);
+        });
+    }
+
     
     function hasPendingMaterials(delivery){
       return delivery.items.some(item=>
@@ -2104,8 +2112,12 @@
           }
 
           // Recuperar nuevamente los datos reales de Supabase
+          await loadMaterialsFromSupabase();
           await loadDeliveriesFromSupabase();
           await loadReturnsFromSupabase();
+          
+          // Actualizar los máximos del formulario de entregas
+          refreshDeliveryQuantityLimits();
 
           // Actualizar las vistas
           renderCalendarEvents();
@@ -2235,7 +2247,9 @@
 
     
         state.deliveries.push(d);
-    
+
+        refreshDeliveryQuantityLimits();
+        
         renderCalendarEvents();
         refreshDeliveryOptions();
         renderLoans();
@@ -2406,9 +2420,13 @@
             }
     
             // Volver a consultar los datos reales de Supabase
+            await loadMaterialsFromSupabase();
             await loadDeliveriesFromSupabase();
             await loadReturnsFromSupabase();
-    
+            
+            // Actualizar los máximos del formulario de entregas
+            refreshDeliveryQuantityLimits();
+            
             // Actualizar las vistas
             renderCalendarEvents();
             renderLoans();
