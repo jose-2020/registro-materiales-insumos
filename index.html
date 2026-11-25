@@ -2161,17 +2161,20 @@
         // Incorporar la entrega guardada al estado de la aplicación
         const technicianSelect=form.elements["technician"];
 
+        
         const d={
-          ...data,
-          technicianName:technicianSelect.options[
-            technicianSelect.selectedIndex
-          ].textContent.trim(),
-          id:result.delivery_id,
-          items,
-          deliveredBy:"",
-          deliveryConfirmed:false,
-          kind:"delivery"
+            ...data,
+            technicianName:technicianSelect.options[
+                technicianSelect.selectedIndex
+            ].textContent.trim(),
+            id:result.delivery_id,
+            items,
+            deliveredBy:"",
+            deliveryConfirmed:false,
+            status:"pendiente",
+            kind:"delivery"
         };
+
     
         state.deliveries.push(d);
     
