@@ -2567,7 +2567,7 @@
         if(!confirm(message)) return;
     
         try{
-          const {data,error}=await supabase.rpc(
+          const {data,error}=await supabaseClient.rpc(
             "delete_delivery",
             {p_delivery_id:id}
           );
