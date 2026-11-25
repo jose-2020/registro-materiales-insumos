@@ -2549,39 +2549,57 @@
     }
     
     
-    function deleteCalendarRecord(){
+    async function deleteCalendarRecord(){
       if(!currentCalendarRecord) return;
     
       const {kind,id}=currentCalendarRecord;
     
       if(kind==="delivery"){
         const delivery=state.deliveries.find(d=>d.id===id);
-    
         if(!delivery) return;
     
         const relatedReturns=state.returns.filter(r=>r.deliveryId===id).length;
     
         const message=relatedReturns
-          ? `¿Eliminar la entrega de ${delivery.student} y sus ${relatedReturns} devolución(es) asociada(s)? También se eliminarán sus registros de la tabla.`
-          : `¿Eliminar la entrega de ${delivery.student}? También se eliminará su registro de la tabla.`;
+          ? `¿Anular la entrega de ${delivery.student} y ocultar sus ${relatedReturns} devolución(es) asociada(s)? Los registros históricos se conservarán.`
+          : `¿Anular la entrega de ${delivery.student}? El registro histórico se conservará.`;
     
         if(!confirm(message)) return;
     
-        // Eliminar la entrega y todas sus devoluciones
-        state.deliveries=state.deliveries.filter(d=>d.id!==id);
-        state.returns=state.returns.filter(r=>r.deliveryId!==id);
+        try{
+          const {data,error}=await supabase.rpc(
+            "delete_delivery",
+            {p_delivery_id:id}
+          );
+    
+          if(error) throw error;
+    
+          if(data && data.success===false){
+            throw new Error(data.message || "No se pudo anular la entrega.");
+          }
+    
+          state.deliveries=state.deliveries.filter(d=>d.id!==id);
+          state.returns=state.returns.filter(r=>r.deliveryId!==id);
+    
+        }catch(error){
+          console.error("Error al anular entrega:",error);
+          alert("No se pudo anular la entrega en Supabase:\n"+error.message);
+          return;
+        }
       }
     
       if(kind==="return"){
         const r=state.returns.find(x=>x.id===id);
-    
         if(!r) return;
     
         if(!confirm(`¿Eliminar la devolución de ${r.student}? Se actualizará el saldo pendiente.`)){
           return;
         }
     
-        state.returns=state.returns.filter(x=>x.id!==id);
+        // Mantener el comportamiento actual hasta conectar
+        // la función de eliminación de devoluciones.
+        alert("La eliminación de devoluciones todavía no está conectada a Supabase.");
+        return;
       }
     
       modal.classList.remove("show");
@@ -2591,8 +2609,9 @@
       renderLoans();
       refreshDeliveryOptions();
     
-      alert("El registro y sus datos relacionados se actualizaron correctamente.");
+      alert("La entrega se anuló correctamente.");
     }
+
     
     function renderLoans(){
       const tbody=document.getElementById("loanRows");
