@@ -2023,6 +2023,25 @@
 
         try {
 
+
+          const excludeDeliveryId = editingRecord.id;
+
+          for (const item of items) {
+              const available = getAvailableStock(
+                  item.materialId,
+                  excludeDeliveryId
+              );
+          
+              if (Number(item.quantity) > available) {
+                  alert(
+                      `Stock insuficiente para "${item.description || item.material}".\n` +
+                      `Disponible: ${available}.\n` +
+                      `Solicitado: ${item.quantity}.`
+                  );
+                  return;
+              }
+          }
+
           // Actualizar la entrega directamente en Supabase
           const { data: result, error } = await supabaseClient.rpc(
             "update_delivery",
@@ -2116,6 +2135,19 @@
       if(items.some(x=>!x.materialId)){
         alert("Uno o más materiales no tienen un identificador válido en Supabase. Verifique la selección.");
         return;
+      }
+
+      for (const item of items) {
+          const available = getAvailableStock(item.materialId);
+      
+          if (Number(item.quantity) > available) {
+              alert(
+                  `Stock insuficiente para "${item.description || item.material}".\n` +
+                  `Disponible: ${available}.\n` +
+                  `Solicitado: ${item.quantity}.`
+              );
+              return;
+          }
       }
     
       // Registrar nueva entrega en Supabase
