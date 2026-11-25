@@ -1468,6 +1468,32 @@
         return Math.max(0, delivered - returned);
     }
     
+    function getAvailableStock(materialId, excludeDeliveryId = null) {
+        const material = materialsCatalog.find(
+            m => m.id === materialId
+        );
+    
+        if (!material || material.current_stock === null) {
+            return 0;
+        }
+    
+        const stock = Number(material.current_stock) || 0;
+    
+        // Sumar las cantidades reservadas en entregas pendientes.
+        // Al editar, excluir la entrega que se está modificando.
+        const reserved = state.deliveries
+            .filter(delivery =>
+                delivery.status === "pendiente" &&
+                delivery.id !== excludeDeliveryId
+            )
+            .flatMap(delivery => delivery.items)
+            .filter(item => item.materialId === materialId)
+            .reduce((total, item) =>
+                total + (Number(item.quantity) || 0), 0
+            );
+    
+        return Math.max(0, stock - reserved);
+    }
     
     function hasPendingMaterials(delivery){
       return delivery.items.some(item=>
