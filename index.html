@@ -996,6 +996,7 @@
             supabaseClient
                 .from("deliveries")
                 .select("*")
+                .neq("status", "anulada")
                 .order("created_at", { ascending: false }),
     
             supabaseClient
@@ -1125,7 +1126,9 @@
         );
     
         // Reconstruir las devoluciones
-        state.returns = (returns || []).map(r => {
+        state.returns = (returns || [])
+            .filter(r => state.deliveries.some(d => d.id === r.delivery_id))
+            .map(r => {
     
             const delivery = state.deliveries.find(
                 d => d.id === r.delivery_id
