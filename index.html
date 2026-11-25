@@ -1401,14 +1401,20 @@
     
         populateMaterialSelect(materialSelect);
     
+        
         materialSelect.addEventListener("change", function() {
             const selectedMaterial = materialsCatalog.find(
                 material => material.id === this.value
             );
-    
+        
             unitInput.value = selectedMaterial?.unit || "";
-    
             searchInput.value = selectedMaterial?.description || "";
+        
+            updateDeliveryQuantityLimit(row);
+        });
+
+        quantityInput.addEventListener("input", function() {
+            updateDeliveryQuantityLimit(row);
         });
     
         searchInput.addEventListener("input", function() {
@@ -1494,6 +1500,53 @@
     
         return Math.max(0, stock - reserved);
     }
+
+    
+    function updateDeliveryQuantityLimit(row) {
+        const materialSelect = row.querySelector(
+            'select[aria-label="Material o insumo"]'
+        );
+    
+        const quantityInput = row.querySelector(
+            'input[aria-label="Cantidad"]'
+        );
+    
+        const materialId = materialSelect.value;
+    
+        if (!materialId) {
+            quantityInput.removeAttribute("max");
+            quantityInput.placeholder = "0";
+            quantityInput.title = "";
+            quantityInput.setCustomValidity("");
+            return;
+        }
+    
+        const excludeDeliveryId =
+            editingRecord?.kind === "delivery"
+                ? editingRecord.id
+                : null;
+    
+        const available = getAvailableStock(
+            materialId,
+            excludeDeliveryId
+        );
+    
+        quantityInput.max = available;
+        quantityInput.placeholder =
+            available > 0 ? `Máx. ${available}` : "Sin stock";
+    
+        quantityInput.title =
+            `Cantidad máxima disponible: ${available}`;
+    
+        if (Number(quantityInput.value) > available) {
+            quantityInput.setCustomValidity(
+                `Solo hay ${available} unidades disponibles para este material.`
+            );
+        } else {
+            quantityInput.setCustomValidity("");
+        }
+    }
+
     
     function hasPendingMaterials(delivery){
       return delivery.items.some(item=>
@@ -2416,6 +2469,9 @@
             kind: "delivery",
             id: d.id
         };
+
+        document.querySelectorAll("#deliveryLines .material-row")
+            .forEach(row => updateDeliveryQuantityLimit(row));
     
         form.querySelector('button[type="submit"]').textContent =
             "Guardar cambios";
