@@ -1098,35 +1098,29 @@
     
         const [
             { data: returns, error: returnsError },
-            { data: returnItems, error: itemsError },
-            { data: profiles, error: profilesError }
+            { data: returnItems, error: itemsError }
         ] = await Promise.all([
-    
+        
             supabaseClient
                 .from("returns")
                 .select("*")
                 .is("deleted_at", null)
                 .order("created_at", { ascending: true }),
-    
+        
             supabaseClient
                 .from("return_items")
-                .select("*"),
-    
-            supabaseClient
-                .from("profiles")
-                .select("id, full_name")
-    
+                .select("*")
+        
         ]);
-    
+        
         if (returnsError) throw returnsError;
         if (itemsError) throw itemsError;
-        if (profilesError) throw profilesError;
-    
-        // Relacionar UUID de usuario con nombre completo
+        
+        // Relacionar UUID de técnico con su nombre completo
         const profileNames = new Map(
-            (profiles || []).map(profile => [
-                profile.id,
-                profile.full_name
+            (technicians || []).map(technician => [
+                technician.id,
+                technician.name
             ])
         );
     
