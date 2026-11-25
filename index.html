@@ -802,9 +802,11 @@
             await loadMaterialsFromSupabase();
             await loadTechniciansFromSupabase();
             await loadDeliveriesFromSupabase();
-
+            await loadReturnsFromSupabase();
+            
             renderCalendarEvents();
             renderLoans();
+            refreshDeliveryOptions();
           
         } catch (error) {
             console.error("No se pudo cargar el catálogo:", error);
@@ -1034,6 +1036,8 @@
             const deliveryItems = (items || [])
                 .filter(item => item.delivery_id === delivery.id)
                 .map(item => ({
+                    id: item.id,
+                    deliveryItemId: item.id,
                     quantity: Number(item.quantity),
                     unit: item.material_unit || "",
                     material: item.material_description || "",
@@ -1084,6 +1088,107 @@
         console.log("Entregas cargadas:", state.deliveries.length);
     
         return state.deliveries;
+    }
+
+    // ======================================
+    // CARGAR DEVOLUCIONES DESDE SUPABASE
+    // ======================================
+    
+    async function loadReturnsFromSupabase() {
+    
+        const [
+            { data: returns, error: returnsError },
+            { data: returnItems, error: itemsError },
+            { data: profiles, error: profilesError }
+        ] = await Promise.all([
+    
+            supabaseClient
+                .from("returns")
+                .select("*")
+                .is("deleted_at", null)
+                .order("created_at", { ascending: true }),
+    
+            supabaseClient
+                .from("return_items")
+                .select("*"),
+    
+            supabaseClient
+                .from("profiles")
+                .select("id, full_name")
+    
+        ]);
+    
+        if (returnsError) throw returnsError;
+        if (itemsError) throw itemsError;
+        if (profilesError) throw profilesError;
+    
+        // Relacionar UUID de usuario con nombre completo
+        const profileNames = new Map(
+            (profiles || []).map(profile => [
+                profile.id,
+                profile.full_name
+            ])
+        );
+    
+        // Reconstruir las devoluciones
+        state.returns = (returns || []).map(r => {
+    
+            const delivery = state.deliveries.find(
+                d => d.id === r.delivery_id
+            );
+    
+            const items = (returnItems || [])
+                .filter(item => item.return_id === r.id)
+                .map(item => {
+    
+                    const deliveryItem = delivery?.items.find(
+                        x => x.id === item.delivery_item_id
+                    );
+    
+                    return {
+                        id: item.id,
+                        deliveryItemId: item.delivery_item_id,
+                        quantity: Number(item.quantity),
+    
+                        material: deliveryItem?.material || "",
+                        materialId: deliveryItem?.materialId || "",
+                        unit: deliveryItem?.unit || ""
+                    };
+                });
+    
+            return {
+                id: r.id,
+                kind: "return",
+    
+                deliveryId: r.delivery_id,
+    
+                student: delivery?.student || "",
+                tutor: delivery?.tutor || "",
+                activity: delivery?.activity || "",
+                project: delivery?.project || "",
+                school: delivery?.school || "",
+    
+                date: r.received_date,
+                time: r.received_time,
+    
+                technicianId: r.received_by_user_id || "",
+    
+                technician:
+                    profileNames.get(r.received_by_user_id) ||
+                    "No disponible",
+    
+                observation: r.notes || "",
+    
+                items
+            };
+        });
+    
+        console.log(
+            "Devoluciones cargadas desde Supabase:",
+            state.returns.length
+        );
+    
+        return state.returns;
     }
 
 
