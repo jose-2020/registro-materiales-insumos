@@ -1488,7 +1488,11 @@
       });
     });
     
-    function eventDate(data){return `${data.date}T${data.time||"00:00"}:00`;}
+    function eventDate(data) {
+        const time = data.time || "00:00:00";
+    
+        return `${data.date}T${time.length === 5 ? time + ":00" : time}`;
+    }
     function formatDate(dateString){
       if(!dateString || dateString==="—") return dateString || "";
     
