@@ -2808,9 +2808,8 @@
             throw new Error(data.message || "No se pudo eliminar la devolución.");
           }
       
+          await loadMaterialsFromSupabase();
           await loadReturnsFromSupabase();
-
-          // Actualizar los máximos del formulario de entregas
           refreshDeliveryQuantityLimits();
           
           modal.classList.remove("show");
