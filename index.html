@@ -515,7 +515,47 @@
     [hidden] {
       display: none !important;
   }
+
+  .header-user{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-shrink:0;
+  }
   
+  #loggedUserName{
+    color:#fff;
+    font-size:13px;
+    font-weight:700;
+  }
+  
+  @media(max-width:520px){
+    .header-user{
+      flex-direction:column;
+      gap:5px;
+      align-items:flex-end;
+    }
+    #loggedUserName{
+      font-size:10px;
+      text-align:right;
+    }
+  }
+
+  .forgot-password{
+    display:block;
+    margin:14px auto 0;
+    padding:5px;
+    border:0;
+    background:transparent;
+    color:#2465a5;
+    font-size:13px;
+    cursor:pointer;
+  }
+  
+  .forgot-password:hover{
+    text-decoration:underline;
+  }
+    
   </style>
 </head>
 <body>
@@ -549,6 +589,11 @@
               <button type="submit" id="loginButton">
                   Iniciar sesión
               </button>
+
+              <button type="button" id="forgotPasswordButton"
+                      class="forgot-password">
+                  ¿Olvidaste tu contraseña?
+              </button>
   
               <p id="loginMessage"></p>
   
@@ -565,9 +610,12 @@
         <p>Sistema de gestión de entregas, devoluciones y trazabilidad de bodega</p>
       </div>
   
-      <button type="button" id="logoutButton" class="logout-button">
-        Cerrar sesión
-      </button>
+      <div class="header-user">
+        <span id="loggedUserName"></span>
+        <button type="button" id="logoutButton" class="logout-button">
+          Cerrar sesión
+        </button>
+      </div>
   
       <img src="img/logo-escuela.png"
            alt="Logo de la escuela"
@@ -756,12 +804,28 @@
         SUPABASE_KEY
     );
     // Detectar sesión de recuperación de contraseña
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-        console.log("Evento de autenticación:", event);
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+
+        if(event === "PASSWORD_RECOVERY" && session){
     
-        if (event === "PASSWORD_RECOVERY") {
-            console.log("Usuario autorizado para cambiar su contraseña.");
-            alert("Enlace de recuperación reconocido. Preparando cambio de contraseña.");
+            const newPassword = prompt(
+                "Ingresa tu nueva contraseña:"
+            );
+    
+            if(!newPassword || newPassword.length < 8){
+                alert("La contraseña debe tener al menos 8 caracteres.");
+                return;
+            }
+    
+            const { error } = await supabaseClient.auth.updateUser({
+                password: newPassword
+            });
+    
+            if(error){
+                alert("No se pudo actualizar la contraseña: " + error.message);
+            }else{
+                alert("Contraseña actualizada correctamente.");
+            }
         }
     });
     console.log("Cliente Supabase inicializado:", !!supabaseClient);
@@ -816,7 +880,8 @@
         
         loginScreen.hidden = true;
         appContent.hidden = false;
-        
+        document.getElementById("loggedUserName").textContent =
+            profile.full_name;
         console.log("Acceso autorizado:", profile.full_name, profile.role);
         
         return profile;
@@ -854,6 +919,38 @@
             loginButton.disabled = false;
             loginButton.textContent = "Iniciar sesión";
         }
+    });
+
+    // Recuperación de contraseña
+    document.getElementById("forgotPasswordButton")
+    .addEventListener("click", async function(){
+    
+        const email = document.getElementById("loginEmail").value.trim();
+    
+        if(!email){
+            loginMessage.textContent =
+                "Primero ingresa tu correo electrónico.";
+            return;
+        }
+    
+        loginMessage.style.color = "#2465a5";
+        loginMessage.textContent = "Enviando solicitud...";
+    
+        const { error } = await supabaseClient.auth
+            .resetPasswordForEmail(email, {
+                redirectTo: window.location.href.split("#")[0]
+            });
+    
+        if(error){
+            loginMessage.style.color = "#b42318";
+            loginMessage.textContent =
+                "No se pudo enviar el correo: " + error.message;
+            return;
+        }
+    
+        loginMessage.style.color = "#16834a";
+        loginMessage.textContent =
+            "Si la cuenta está registrada, recibirás un correo con instrucciones para recuperar tu contraseña.";
     });
     
     // Recuperar una sesión existente al abrir la página
