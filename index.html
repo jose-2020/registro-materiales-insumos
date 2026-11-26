@@ -1526,26 +1526,50 @@
             return;
         }
     
-        const excludeDeliveryId =
-            editingRecord?.kind === "delivery"
-                ? editingRecord.id
-                : null;
+        const isEditingDelivery =
+            editingRecord?.kind === "delivery";
     
-        const available = getAvailableStock(
+        const excludeDeliveryId = isEditingDelivery
+            ? editingRecord.id
+            : null;
+    
+        // Stock actual menos las reservas de otras entregas pendientes.
+        let available = getAvailableStock(
             materialId,
             excludeDeliveryId
         );
     
+        // Si editamos una entrega confirmada, recuperar solamente
+        // las unidades de esa entrega que aún no han sido devueltas.
+        if (isEditingDelivery) {
+            const existing = state.deliveries.find(
+                d => d.id === editingRecord.id
+            );
+    
+            if (existing && existing.status === "confirmada") {
+                const recoverableQuantity = existing.items
+                    .filter(item => item.materialId === materialId)
+                    .reduce(
+                        (total, item) =>
+                            total + getPendingQuantity(existing, item),
+                        0
+                    );
+    
+                available += recoverableQuantity;
+            }
+        }
+    
         quantityInput.max = available;
+    
         quantityInput.placeholder =
             available > 0 ? `Máx. ${available}` : "Sin stock";
     
         quantityInput.title =
-            `Cantidad máxima disponible: ${available}`;
+            `Cantidad máxima permitida: ${available}`;
     
         if (Number(quantityInput.value) > available) {
             quantityInput.setCustomValidity(
-                `Solo hay ${available} unidades disponibles para este material.`
+                `La cantidad máxima permitida es ${available}.`
             );
         } else {
             quantityInput.setCustomValidity("");
@@ -2742,8 +2766,18 @@
             throw new Error(data.message || "No se pudo anular la entrega.");
           }
     
-          state.deliveries=state.deliveries.filter(d=>d.id!==id);
-          state.returns=state.returns.filter(r=>r.deliveryId!==id);
+          // Recargar los datos actualizados desde Supabase
+          await loadMaterialsFromSupabase();
+          await loadDeliveriesFromSupabase();
+          await loadReturnsFromSupabase();
+          
+          // Actualizar los máximos del formulario de entregas
+          refreshDeliveryQuantityLimits();
+          
+          // Actualizar las vistas
+          renderCalendarEvents();
+          renderLoans();
+          refreshDeliveryOptions();
     
         }catch(error){
           console.error("Error al anular entrega:",error);
